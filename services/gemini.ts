@@ -1,58 +1,57 @@
+// src/services/gemini.ts
 
-import { GoogleGenAI, Type } from "@google/genai";
-
-// 初始化 Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-const expenseSchema = {
-  type: Type.OBJECT,
-  properties: {
-    merchant: { type: Type.STRING, description: '消費店家名稱（如：Starbucks, Migros, Coop）' },
-    item: { type: Type.STRING, description: '項目內容。請務必逐行列出收據上的所有商品品項。如果是手動輸入如「飲料2」，則項目內容為「飲料」。' },
-    amount: { type: Type.NUMBER, description: '外幣金額 (原始收據上的總金額)' },
-    currency: { type: Type.STRING, description: '幣別，如 CHF, EUR, JPY, TWD' },
-    category: { type: Type.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險' },
-    date: { type: Type.STRING, description: '日期，格式 YYYY-MM-DD。請從收據中找出交易日期。' },
-  },
-  required: ['merchant', 'item', 'amount', 'currency', 'category', 'date'],
-};
-
+// 處理文字輸入
 export const processAIInput = async (text: string, defaultCurrency: string = 'CHF') => {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `這是一趟正在進行中的旅行，目前所在地區的主要貨幣是 ${defaultCurrency}。
-    請分析以下記帳資訊： "${text}"。
-    
-    規則：
-    1. 如果使用者輸入如「品項+數字」（例如：飲料2、巧克力 7），請將數字判定為 'amount'（金額），文字判定為 'item'（項目內容）。
-    2. 幣別優先判定為 ${defaultCurrency}。
-    3. 如果沒有明確店家，店家(merchant)可與項目內容相同。
-    4. 今天日期是 ${new Date().toISOString().split('T')[0]}。`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: expenseSchema,
-    },
-  });
-  return JSON.parse(response.text || '{}');
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'text',
+        text: text,
+        defaultCurrency: defaultCurrency,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error processing text:", error);
+    return {}; // 或回傳錯誤訊息讓 UI 處理
+  }
 };
 
+// 處理圖片輸入
 export const processReceiptImage = async (base64Image: string) => {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: {
-      parts: [
-        { inlineData: { data: base64Image, mimeType: 'image/jpeg' } },
-        { text: `請精確辨識這張收據的所有細節：
-        1. 找出消費店家(merchant)，例如：MIGROS。
-        2. 核心任務：在 'item' (項目內容) 欄位，請『逐行』列出收據上看到的所有商品名稱、數量與單價。
-        3. 準確抓取最終付款的總金額(amount)與幣別(currency)。
-        4. 辨識收據上的交易日期(date)，格式轉為 YYYY-MM-DD。` }
-      ]
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: expenseSchema,
-    },
-  });
-  return JSON.parse(response.text || '{}');
+  try {
+    // 移除 base64 的前綴 (例如 data:image/jpeg;base64,) 如果有的話，
+    // 但通常 Google SDK 需要純 base64 字串，請確認這裡傳入的是純字串還是帶有前綴的。
+    // 如果傳入的是帶前綴的，可以在這裡處理，或者確保後端接收正確格式。
+    const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
+
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'image',
+        base64Image: cleanBase64,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error processing image:", error);
+    return {};
+  }
 };
