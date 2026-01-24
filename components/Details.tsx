@@ -148,7 +148,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-xl text-black truncate leading-tight">{t.merchant}</span>
+                            <span className="font-black text-lg text-black truncate leading-tight">{t.merchant}</span>
                             {!t.isSplit ? (
                               <span className="shrink-0 bg-pink-100 text-pink-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-pink-200">個人</span>
                             ) : (
@@ -165,8 +165,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                           {t.originalAmount} {t.currency}
                         </div>
                         {/* 台幣在下 */}
-                        <div className="font-black text-2xl text-black leading-none">
-                          <span className="text-sm mr-1 font-bold">NT$</span>
+                        <div className="font-black text-xl text-black leading-none">
+                          <span className="text-sm mr-0.5 font-bold">NT$</span>
                           {Math.round(t.ntdAmount).toLocaleString()}
                         </div>
                       </div>

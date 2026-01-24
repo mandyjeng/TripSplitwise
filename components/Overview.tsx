@@ -137,7 +137,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-xl text-black truncate leading-tight">{t.merchant}</span>
+                      <span className="font-black text-lg text-black truncate leading-tight">{t.merchant}</span>
                       {!t.isSplit ? (
                         <span className="shrink-0 bg-pink-100 text-pink-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-pink-200 flex items-center gap-1">
                            <ShieldAlert size={10} strokeWidth={3} /> 個人
@@ -156,8 +156,8 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
                   <div className="text-[13px] font-bold text-slate-500 italic uppercase mb-1">
                     {t.originalAmount} {t.currency}
                   </div>
-                  <div className="font-black text-2xl text-black leading-none">
-                    <span className="text-sm mr-1 font-bold">NT$</span>
+                  <div className="font-black text-xl text-black leading-none">
+                    <span className="text-sm mr-0.5 font-bold">NT$</span>
                     {Math.round(t.ntdAmount).toLocaleString()}
                   </div>
                 </div>
@@ -182,9 +182,6 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
                         </span>
                       ))}
                     </div>
-                  </div>
-                  <div className="ml-auto text-sm font-bold text-slate-600 italic whitespace-nowrap">
-                    {t.date}
                   </div>
                 </div>
               </div>
