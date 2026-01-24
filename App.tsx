@@ -6,8 +6,7 @@ import Overview from './components/Overview';
 import Details from './components/Details';
 import Settings from './components/Settings';
 import { saveToGoogleSheet, fetchTransactionsFromSheet } from './services/sheets';
-// Fix: Import missing RefreshCw icon from lucide-react
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Users as UsersIcon } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -36,14 +35,12 @@ const App: React.FC = () => {
       const cloudRecords = await fetchTransactionsFromSheet(state.sheetUrl);
       if (cloudRecords.length === 0) return;
 
-      // 取得雲端出現的所有姓名
       const namesInCloud = new Set<string>();
       cloudRecords.forEach(r => {
         if (r.payerId) namesInCloud.add(r.payerId);
         if (r.splitWith) r.splitWith.forEach(name => namesInCloud.add(name));
       });
 
-      // 更新成員列表，避免重複並保留 ID
       const updatedMembers = [...state.members];
       namesInCloud.forEach(name => {
         if (!updatedMembers.some(m => m.name === name)) {
@@ -51,7 +48,6 @@ const App: React.FC = () => {
         }
       });
 
-      // 格式化交易紀錄中的 ID 對應
       const formattedTransactions = cloudRecords.map(r => {
         const payer = updatedMembers.find(m => m.name === r.payerId);
         const splitIds = r.splitWith?.map(name => updatedMembers.find(m => m.name === name)?.id).filter(Boolean) as string[];
@@ -77,10 +73,9 @@ const App: React.FC = () => {
     }
   }, [state.sheetUrl, state.members, state.exchangeRate]);
 
-  // 初始化自動載入
   useEffect(() => {
     syncFromCloud(true);
-  }, []); // 僅在初次掛載執行
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('trip_split_state', JSON.stringify(state));
@@ -107,7 +102,7 @@ const App: React.FC = () => {
       item: t.item || '未命名項目',
       merchant: t.merchant || '未知店家',
       category: category as Category,
-      type: isSplit ? '公帳' : '私帳', // 根據是否拆帳決定類型
+      type: isSplit ? '公帳' : '私帳',
       payerId: payerId,
       currency: t.currency || state.defaultCurrency,
       originalAmount: t.originalAmount || 0,
@@ -151,34 +146,37 @@ const App: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto min-h-screen flex flex-col relative bg-[#FDFCF8] overflow-x-hidden">
-      <header className="px-6 py-6 flex justify-between items-center bg-[#FDFCF8] sticky top-0 z-20">
-        <div>
-          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
-            TripSplit <span className="bg-[#F6D32D] text-xs px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-black">AI</span>
-          </h1>
-          <p className="text-slate-400 text-[10px] mt-0.5 font-black uppercase tracking-widest">極簡旅遊記帳</p>
+      <header className="px-6 py-6 bg-[#FDFCF8] sticky top-0 z-20 space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+              TripSplit <span className="bg-[#F6D32D] text-xs px-2.5 py-1 rounded-full font-black border-2 border-black">AI</span>
+            </h1>
+            <p className="text-slate-400 text-xs mt-1 font-black uppercase tracking-widest">極簡旅遊記帳</p>
+          </div>
+          {isSyncing && (
+            <div className="bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase flex items-center gap-2 animate-bounce comic-border">
+              <RefreshCw size={10} className="animate-spin" />
+              同步中
+            </div>
+          )}
         </div>
-        <div className="flex -space-x-2">
-          {state.members.slice(0, 4).map((m, i) => (
+
+        {/* 優化後的成員排版 */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          <div className="p-2 bg-slate-100 rounded-lg text-slate-400 shrink-0">
+            <UsersIcon size={16} />
+          </div>
+          {state.members.map((m) => (
             <div 
               key={m.id} 
-              className="h-9 px-3 rounded-full border-2 border-black bg-[#F6D32D] flex items-center justify-center text-black font-black text-[10px] shadow-sm whitespace-nowrap"
-              style={{ zIndex: state.members.length - i }}
+              className={`h-9 px-4 rounded-xl border-2 border-black flex items-center justify-center font-black text-sm shadow-sm whitespace-nowrap ${state.currentUser === m.id ? 'bg-[#F6D32D]' : 'bg-white'}`}
             >
               {m.name}
             </div>
           ))}
         </div>
       </header>
-
-      {isSyncing && (
-        <div className="absolute top-20 left-0 right-0 z-30 flex justify-center pointer-events-none">
-          <div className="bg-black text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-bounce comic-border">
-            <RefreshCw size={10} className="animate-spin" />
-            同步資料中...
-          </div>
-        </div>
-      )}
 
       <main className="flex-1 px-6 pb-32">
         {renderContent()}
@@ -189,10 +187,10 @@ const App: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 transition-all flex-1 py-2 rounded-2xl ${activeTab === tab.id ? 'bg-black text-white' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 transition-all flex-1 py-3 rounded-2xl ${activeTab === tab.id ? 'bg-black text-white shadow-lg' : 'text-slate-400'}`}
           >
-            {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 18 })}
-            <span className="text-[9px] font-black uppercase tracking-widest">
+            {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 20 })}
+            <span className="text-xs font-black uppercase tracking-widest">
               {tab.label}
             </span>
           </button>
