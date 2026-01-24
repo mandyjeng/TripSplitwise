@@ -55,7 +55,7 @@ export default async function handler(req: any, res: any) {
       if (!text) throw new Error("缺少文字內容");
 
       modelParams = {
-        model: "gemini-2.0-flash", // 建議統一使用 2.0-flash 較為穩定
+        model: "gemini-flash-latest", // 建議統一使用 2.0-flash 較為穩定
         contents: `這是一趟正在進行中的旅行，目前所在地區的主要貨幣是 ${defaultCurrency}。
           請分析以下記帳資訊： "${text}"。
           規則：
@@ -120,12 +120,36 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json(parsedData);
 
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    
-    // 6. 回傳錯誤訊息給前端 (前端可依此顯示 Alert)
+   console.error("Gemini API Error:", error);
+
+    // 1. 專門捕捉 429 (配額額滿) 錯誤
+    // Google SDK 的錯誤物件結構比較深，有時候 status 在 response 裡，有時候在外面
+    const isQuotaError = error.status === 429 || 
+                         error.response?.status === 429 || 
+                         error.message?.includes('429') ||
+                         error.message?.includes('Quota exceeded');
+
+    if (isQuotaError) {
+      return res.status(429).json({ 
+        error: 'QUOTA_EXCEEDED', 
+        message: '⚠️ API 免費額度已滿或請求過快。請休息約 1 分鐘後再試。' 
+      });
+    }
+
+    // 2. 捕捉安全性篩選錯誤 (常見於收據包含敏感關鍵字)
+    if (error.message?.includes('SAFETY') || error.message?.includes('blocked')) {
+      return res.status(400).json({
+        error: 'SAFETY_BLOCK',
+        message: '⚠️ 內容被 AI 安全性篩選器攔截，無法處理。'
+      });
+    }
+
+    // 3. 其他未知錯誤
+    // 為了版面整潔，我們只回傳 error.message 的重點，或給通用訊息
     return res.status(500).json({ 
-      error: 'AI Processing Failed', 
-      message: error.message || '系統發生未預期的錯誤' 
+      error: 'AI_PROCESSING_ERROR', 
+      message: error.message || '系統發生未知錯誤，請稍後再試。' 
     });
+  
   }
 }
