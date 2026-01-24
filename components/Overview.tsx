@@ -55,14 +55,14 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
         <div className="bg-[#E64A4A] p-6 rounded-[2.5rem] text-white comic-border comic-shadow">
           <div className="flex items-center gap-2 mb-2 opacity-90 font-bold">
             <TrendingUp size={18} />
-            <span className="text-sm font-black uppercase">整趟總支出</span>
+            <span className="text-sm font-black uppercase tracking-wider">總支出</span>
           </div>
           <div className="text-3xl font-black leading-none mt-2">$-{Math.round(totalExpense).toLocaleString()}</div>
         </div>
         <div className="bg-white p-6 rounded-[2.5rem] comic-border comic-shadow text-black">
           <div className="flex items-center gap-2 mb-2 text-slate-500 font-bold">
             <ShoppingBag size={18} className="text-[#1FA67A]" />
-            <span className="text-sm font-black uppercase">我的總花費</span>
+            <span className="text-sm font-black uppercase tracking-wider">我的花費</span>
           </div>
           <div className="text-2xl font-black leading-none mt-2">NT$ {Math.round(myTotalCost).toLocaleString()}</div>
           <p className="text-xs font-bold text-slate-400 mt-2 uppercase">含分擔與個人</p>
@@ -83,7 +83,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
         />
       </section>
 
-      {/* Settlement Section - 優化版面，移除重複名稱 */}
+      {/* Settlement Section */}
       <section>
         <h2 className="text-2xl font-black text-black mb-6 flex items-center gap-2">
           <div className="w-2.5 h-8 bg-[#1FA67A] comic-border"></div>
@@ -94,7 +94,6 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
             {state.members.map(m => (
               <div key={m.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  {/* 使用首字作為頭像感 */}
                   <div className="w-14 h-14 bg-[#F6D32D] comic-border rounded-2xl flex items-center justify-center text-black font-black text-xl">
                     {m.name.charAt(0).toUpperCase()}
                   </div>
@@ -118,14 +117,14 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
         </div>
       </section>
 
-      {/* Recent Activity */}
+      {/* Recent Activity - 修正日期排版 */}
       <section>
         <div className="flex justify-between items-end mb-6">
           <h2 className="text-2xl font-black text-black flex items-center gap-2">
             <div className="w-2.5 h-8 bg-slate-400 comic-border"></div>
             最新動態
           </h2>
-          <span className="text-sm font-bold text-slate-400 italic">3 筆最新紀錄</span>
+          <span className="text-sm font-bold text-slate-400 italic">僅 3 筆</span>
         </div>
         <div className="space-y-5">
           {recentTransactions.map(t => (
@@ -133,12 +132,12 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
               <div className={`w-12 h-12 rounded-2xl comic-border bg-white text-black shrink-0 flex items-center justify-center`}>
                 {CATEGORY_ICONS[t.category]}
               </div>
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 min-w-0">
                 <div className="font-black text-xl text-black truncate leading-tight">{t.merchant}</div>
                 <div className="text-sm font-bold text-slate-500 truncate mt-1">{t.item}</div>
-                <div className="text-xs font-black text-slate-400 mt-3 flex items-center gap-3">
-                  <span className="bg-slate-100 px-2 py-1 rounded text-slate-600 border border-slate-200">{state.members.find(m => m.id === t.payerId)?.name}</span>
-                  <span className="italic">{t.date}</span>
+                <div className="text-sm font-black text-slate-400 mt-3 flex items-center gap-2 overflow-hidden">
+                  <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 border border-slate-200 shrink-0">{state.members.find(m => m.id === t.payerId)?.name}</span>
+                  <span className="italic opacity-60 whitespace-nowrap">{t.date}</span>
                 </div>
               </div>
               <div className="text-right shrink-0">
@@ -148,7 +147,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
             </div>
           ))}
           {recentTransactions.length === 0 && (
-            <div className="text-center py-20 text-slate-300 font-black italic text-2xl">尚無消費紀錄</div>
+            <div className="text-center py-20 text-slate-300 font-black italic text-2xl tracking-widest">NO RECORDS</div>
           )}
         </div>
       </section>

@@ -11,6 +11,7 @@ interface DetailsProps {
     members: Member[];
     sheetUrl?: string;
     exchangeRate: number;
+    currentUser: string;
   };
   onDeleteTransaction: (id: string) => void;
   updateState: (updates: any) => void;
@@ -37,7 +38,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       setEditingItem(null);
     } catch (error) {
       console.error('Save failed:', error);
-      alert('儲存失敗，請檢查網路連線');
+      alert('儲存失敗');
     } finally {
       setIsSaving(false);
     }
@@ -63,6 +64,15 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     });
   };
 
+  const toggleSplitMember = (memberId: string) => {
+    if (!editingItem || !editingItem.isSplit) return;
+    const currentSplit = editingItem.splitWith || [];
+    const newSplit = currentSplit.includes(memberId)
+      ? currentSplit.filter(id => id !== memberId)
+      : [...currentSplit, memberId];
+    setEditingItem({ ...editingItem, splitWith: newSplit });
+  };
+
   const filteredTransactions = state.transactions
     .filter(t => filterCategory === '全部' || t.category === filterCategory)
     .filter(t => 
@@ -74,15 +84,15 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
   const dates = Array.from(new Set(filteredTransactions.map(t => t.date)));
 
   return (
-    <div className="space-y-6 pb-24">
-      <div className="sticky top-0 bg-[#FDFCF8]/90 backdrop-blur-md pt-2 pb-4 z-10 border-b-2 border-dashed border-slate-100">
-        <div className="flex gap-3 mb-4">
+    <div className="space-y-8 pb-24">
+      <div className="sticky top-0 bg-[#FDFCF8]/90 backdrop-blur-md pt-4 pb-6 z-10 border-b-2 border-dashed border-slate-200">
+        <div className="flex gap-4 mb-5">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={24} />
             <input 
               type="text"
               placeholder="搜尋店家或項目..."
-              className="w-full bg-white comic-border rounded-2xl py-4 pl-12 pr-4 text-base font-bold focus:outline-none focus:ring-2 focus:ring-[#F6D32D]/50 transition-all"
+              className="w-full bg-white comic-border rounded-3xl py-4 pl-14 pr-6 text-lg font-bold focus:outline-none"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -90,19 +100,19 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
           <button 
             onClick={onSync}
             disabled={isSyncing}
-            className="bg-[#F6D32D] comic-border w-14 rounded-2xl flex items-center justify-center comic-shadow-sm active:translate-y-0.5 transition-all disabled:opacity-50"
+            className="bg-[#F6D32D] comic-border w-16 rounded-3xl flex items-center justify-center comic-shadow-sm active:translate-y-1 transition-all disabled:opacity-50"
           >
-            <RefreshCw size={24} className={isSyncing ? "animate-spin" : ""} />
+            <RefreshCw size={28} className={isSyncing ? "animate-spin" : ""} />
           </button>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
           {['全部', ...CATEGORIES].map(c => (
             <button 
               key={c}
               onClick={() => setFilterCategory(c as any)}
-              className={`px-5 py-2 rounded-xl text-xs font-black comic-border whitespace-nowrap transition-all ${
-                filterCategory === c ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-50'
+              className={`px-5 py-2 rounded-2xl text-sm font-black comic-border whitespace-nowrap ${
+                filterCategory === c ? 'bg-black text-white' : 'bg-white text-black'
               }`}
             >
               {c}
@@ -114,55 +124,66 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       <div className="space-y-10">
         {dates.length > 0 ? (
           dates.map(date => (
-            <div key={date} className="space-y-4">
+            <div key={date} className="space-y-5">
               <div className="flex items-center gap-3">
-                <div className="bg-white comic-border px-4 py-1.5 rounded-lg comic-shadow-sm flex items-center gap-2">
-                  <Calendar size={16} strokeWidth={3} />
-                  <span className="text-xs font-black uppercase tracking-widest">{date}</span>
+                <div className="bg-white comic-border px-5 py-1.5 rounded-xl comic-shadow-sm flex items-center gap-2">
+                  <Calendar size={18} strokeWidth={3} />
+                  <span className="text-sm font-black uppercase tracking-widest whitespace-nowrap">{date}</span>
                 </div>
                 <div className="flex-1 h-[2px] bg-slate-100"></div>
               </div>
               
-              <div className="space-y-5">
+              <div className="space-y-6">
                 {filteredTransactions.filter(t => t.date === date).map(t => (
                   <div 
                     key={t.id} 
                     onClick={() => setEditingItem(t)}
-                    className="bg-white comic-border p-5 rounded-[2rem] flex items-center gap-4 comic-shadow hover:translate-x-1 hover:-translate-y-1 transition-all cursor-pointer group"
+                    className="bg-white comic-border p-6 rounded-[2.5rem] flex flex-col gap-4 comic-shadow hover:translate-x-1 hover:-translate-y-1 transition-all cursor-pointer relative overflow-hidden"
                   >
-                    <div className={`w-12 h-12 rounded-2xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                      {CATEGORY_ICONS[t.category]}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-black text-lg text-slate-900 truncate">{t.merchant}</span>
-                        {!t.isSplit ? (
-                          <span className="shrink-0 bg-pink-100 text-pink-600 text-[10px] font-black px-2 py-0.5 rounded border border-pink-200 uppercase tracking-tighter flex items-center gap-0.5">
-                            <ShieldAlert size={10} strokeWidth={3} /> 私
-                          </span>
-                        ) : (
-                          <span className="shrink-0 bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded border border-blue-100 uppercase tracking-tighter flex items-center gap-0.5">
-                            <Users size={10} strokeWidth={3} /> {t.splitWith.length}人
-                          </span>
-                        )}
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
+                        {CATEGORY_ICONS[t.category]}
                       </div>
-                      <div className="text-sm font-bold text-slate-400 truncate mb-2 leading-snug">{t.item}</div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 px-3 bg-[#F6D32D] border-2 border-black rounded-md flex items-center justify-center text-black font-black text-xs">
-                          {state.members.find(m => m.id === t.payerId)?.name || '未知'}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-black text-xl text-slate-900 truncate">{t.merchant}</span>
+                          {!t.isSplit ? (
+                            <span className="shrink-0 bg-pink-100 text-pink-600 text-[10px] font-black px-2 py-0.5 rounded border border-pink-200">個人</span>
+                          ) : (
+                            <span className="shrink-0 bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded border border-blue-100 tracking-tighter">{t.splitWith.length}人</span>
+                          )}
                         </div>
-                        <span className="text-xs font-bold text-slate-300 uppercase">付款</span>
+                        <div className="text-base font-bold text-slate-400 truncate leading-snug">{t.item}</div>
+                      </div>
+
+                      <div className="text-right shrink-0 ml-2">
+                        <div className="font-black text-xl text-black leading-none">
+                          <span className="text-xs mr-1">NT$</span>
+                          {Math.round(t.ntdAmount).toLocaleString()}
+                        </div>
+                        <div className="text-xs font-bold text-slate-300 italic mt-1.5 uppercase">
+                          {t.originalAmount} {t.currency}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0 border-l-2 border-slate-50 pl-4">
-                      <div className="font-black text-xl text-black leading-tight">
-                        <span className="text-xs mr-1">NT$</span>
-                        {Math.round(t.ntdAmount).toLocaleString()}
+                    <div className="pt-4 border-t-2 border-slate-50 flex items-center gap-3">
+                      <div className="flex items-center gap-2 text-sm font-black text-slate-500 bg-slate-50 px-3 py-1 rounded-xl">
+                        <div className="w-6 h-6 rounded-md bg-[#F6D32D] comic-border flex items-center justify-center text-black text-[10px]">
+                          {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span>{state.members.find(m => m.id === t.payerId)?.name} 付</span>
                       </div>
-                      <div className="text-xs font-bold text-slate-300 italic mt-1">
-                        {t.originalAmount} {t.currency}
+                      <div className="flex flex-wrap gap-2 items-center flex-1 overflow-hidden">
+                        <span className="text-xs font-black text-slate-300 shrink-0">分給:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {t.splitWith.map(mid => (
+                            <span key={mid} className="text-xs font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2 rounded-md whitespace-nowrap">
+                              {state.members.find(m => m.id === mid)?.name}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -171,80 +192,74 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             </div>
           ))
         ) : (
-          <div className="py-24 text-center space-y-4">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-200">
-              <Search size={32} />
-            </div>
-            <p className="text-slate-300 font-black italic">尚無符合條件的明細</p>
+          <div className="py-24 text-center">
+            <p className="text-slate-300 font-black italic text-xl tracking-widest uppercase opacity-50">Empty Records</p>
           </div>
         )}
       </div>
 
       {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in">
           <div className="bg-white comic-border rounded-[2.5rem] w-full max-w-sm p-8 comic-shadow relative overflow-hidden">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-black italic flex items-center gap-2">
-                <Clock className="text-[#F6D32D]" /> 修改明細
+              <h3 className="text-2xl font-black italic flex items-center gap-3 text-slate-900">
+                <Clock className="text-[#F6D32D]" size={24} strokeWidth={3} /> 修改明細
               </h3>
-              <button onClick={() => setEditingItem(null)} className="p-3 bg-slate-50 rounded-full">
-                <X size={24} />
+              <button onClick={() => setEditingItem(null)} className="p-3 bg-slate-50 rounded-full text-slate-400">
+                <X size={24} strokeWidth={3} />
               </button>
             </div>
             
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 no-scrollbar">
+            <div className="space-y-5 max-h-[60vh] overflow-y-auto no-scrollbar pb-4">
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-3 rounded-2xl border-2 border-black">
-                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase">日期</label>
+                <div className="bg-slate-50 p-3 rounded-xl border-2 border-black">
+                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase tracking-wider">日期</label>
                   <input 
                     type="date"
-                    className="w-full bg-transparent font-black text-base outline-none p-0"
+                    className="w-full bg-transparent font-black text-base outline-none p-0 text-slate-900"
                     value={editingItem.date}
                     onChange={e => setEditingItem({...editingItem, date: e.target.value})}
                   />
                 </div>
-                <div className="bg-slate-50 p-3 rounded-2xl border-2 border-black">
-                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase">店家</label>
+                <div className="bg-slate-50 p-3 rounded-xl border-2 border-black">
+                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase tracking-wider">店家</label>
                   <input 
-                    className="w-full bg-transparent font-black text-base outline-none p-0"
+                    className="w-full bg-transparent font-black text-base outline-none p-0 text-slate-900"
                     value={editingItem.merchant}
                     onChange={e => setEditingItem({...editingItem, merchant: e.target.value})}
                   />
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-2xl border-2 border-black">
+              <div className="bg-slate-50 p-4 rounded-[1.5rem] border-2 border-black">
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-black text-slate-400 uppercase">帳目類型</label>
-                  <span className={`text-xs font-black px-2 py-0.5 rounded-md ${editingItem.isSplit ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>
+                  <label className="text-xs font-black text-slate-400 uppercase">項目內容</label>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${editingItem.isSplit ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-pink-50 text-pink-600 border-pink-100'}`}>
                     {editingItem.type}
                   </span>
                 </div>
-                <label className="text-xs font-black text-slate-400 mb-1 block uppercase">項目內容</label>
                 <textarea 
-                  className="w-full bg-transparent font-bold text-base min-h-[70px] outline-none leading-snug p-0"
+                  className="w-full bg-transparent font-bold text-base min-h-[70px] outline-none leading-snug p-0 text-slate-900"
                   value={editingItem.item}
                   onChange={e => setEditingItem({...editingItem, item: e.target.value})}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-[#FFFDF0] p-3 rounded-2xl border-2 border-[#E64A4A]">
-                  <label className="text-xs font-black text-[#E64A4A] mb-1 block uppercase tracking-tighter">台幣金額</label>
+                <div className="bg-[#FFFDF0] p-3 rounded-xl border-2 border-[#E64A4A]">
+                  <label className="text-[10px] font-black text-[#E64A4A] mb-1 block uppercase tracking-tighter">台幣金額</label>
                   <input 
                     type="number"
-                    placeholder="0"
-                    className="w-full bg-transparent font-black text-xl outline-none p-0"
+                    className="w-full bg-transparent font-black text-xl outline-none p-0 text-slate-900"
                     value={editingItem.ntdAmount === 0 ? '' : editingItem.ntdAmount}
                     onChange={e => setEditingItem({...editingItem, ntdAmount: e.target.value ? Number(e.target.value) : 0})}
                   />
                 </div>
-                <div className="bg-slate-50 p-3 rounded-2xl border-2 border-black">
-                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase">外幣 ({editingItem.currency})</label>
+                <div className="bg-slate-50 p-3 rounded-xl border-2 border-black">
+                  <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase">外幣 ({editingItem.currency})</label>
                   <input 
                     type="number"
-                    placeholder="0"
-                    className="w-full bg-transparent font-black text-xl outline-none p-0"
+                    className="w-full bg-transparent font-black text-xl outline-none p-0 text-slate-900"
                     value={editingItem.originalAmount === 0 ? '' : editingItem.originalAmount}
                     onChange={e => handleAmountChange(e.target.value ? Number(e.target.value) : 0)}
                   />
@@ -252,25 +267,47 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-3 rounded-2xl border-2 border-black">
-                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase">分類</label>
+                <div className="bg-slate-50 p-3 rounded-xl border-2 border-black">
+                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase tracking-widest">分類</label>
                   <select 
-                    className="w-full bg-transparent font-black text-base appearance-none outline-none p-0"
+                    className="w-full bg-transparent font-black text-base appearance-none outline-none p-0 text-slate-900"
                     value={editingItem.category}
                     onChange={e => setEditingItem({...editingItem, category: e.target.value as Category})}
                   >
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-2xl border-2 border-black">
-                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase">付款人</label>
+                <div className="bg-slate-50 p-3 rounded-xl border-2 border-black">
+                  <label className="text-xs font-black text-slate-400 mb-1 block uppercase tracking-widest">付款人</label>
                   <select 
-                    className="w-full bg-transparent font-black text-base appearance-none outline-none p-0"
+                    className="w-full bg-transparent font-black text-base appearance-none outline-none p-0 text-slate-900"
                     value={editingItem.payerId}
                     onChange={e => setEditingItem({...editingItem, payerId: e.target.value})}
                   >
                     {state.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border-2 border-black">
+                <label className="text-[10px] font-black text-slate-400 mb-3 block uppercase tracking-widest">參與分帳人員</label>
+                <div className="flex flex-wrap gap-2">
+                  {state.members.map(m => (
+                    <button
+                      key={m.id}
+                      disabled={!editingItem.isSplit}
+                      onClick={() => toggleSplitMember(m.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 border-black transition-all ${
+                        !editingItem.isSplit ? 'opacity-30' : ''
+                      } ${
+                        editingItem.splitWith?.includes(m.id) 
+                          ? 'bg-[#F6D32D] text-black shadow-sm' 
+                          : 'bg-white text-slate-300 border-slate-100'
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -279,17 +316,17 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               <button 
                 disabled={isSaving}
                 onClick={() => handleDelete(editingItem)}
-                className="p-4 bg-white border-2 border-red-200 text-red-500 rounded-2xl hover:bg-red-50 transition-all disabled:opacity-50"
+                className="p-4 bg-white border-2 border-red-200 text-red-500 rounded-2xl active:scale-95 transition-all"
               >
                 <Trash2 size={24} />
               </button>
               <button 
                 disabled={isSaving}
                 onClick={handleSaveEdit}
-                className="flex-1 py-4 bg-black text-white rounded-2xl font-black comic-shadow-sm flex items-center justify-center gap-2 active:translate-y-1 transition-all disabled:opacity-50 text-base"
+                className="flex-1 py-4 bg-black text-white rounded-2xl font-black comic-shadow-sm flex items-center justify-center gap-2 active:translate-y-1 transition-all text-base"
               >
                 {isSaving ? <Loader2 className="animate-spin" size={24} /> : <Save size={20} />}
-                {isSaving ? '儲存中...' : '儲存修改'}
+                {isSaving ? '儲存中' : '儲存修改'}
               </button>
             </div>
           </div>
