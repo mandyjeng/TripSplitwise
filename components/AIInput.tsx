@@ -55,7 +55,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
         preparePendingRecord(result, 'image');
       } catch (error) {
         console.error(error);
-        alert('圖片辨識失敗');
+        alert('AI圖片處理失敗:'+error);
       } finally {
         setIsLoading(false);
       }
