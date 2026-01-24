@@ -42,8 +42,8 @@ export default async function handler(req: any, res: any) {
 
   try {
     // 2. 檢查 API Key
-    if (!process.env.API_KEY) {
-      throw new Error("Server Error: API_KEY is missing in environment variables.");
+    if (!process.env.GOOGLE_API_KEY) {
+      throw new Error("Server Error: GOOGLE_API_KEY is missing in environment variables.");
     }
 
     const { type, text, base64Image, defaultCurrency = 'CHF' } = req.body;
