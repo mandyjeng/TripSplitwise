@@ -1,0 +1,7 @@
+{
+  "name": "TripSplit",
+  "description": "一站式旅遊記帳應用，支援 AI 語音/文字記帳、收據識別、多人分帳及多幣別換算。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
