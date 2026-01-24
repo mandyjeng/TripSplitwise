@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 // 初始化 Gemini (在伺服器端執行，process.env 讀取是安全的)
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// 定義 Schema (原本的定義搬過來)
+// 定義 Schema
 const expenseSchema = {
   type: Type.OBJECT,
   properties: {
@@ -19,29 +19,43 @@ const expenseSchema = {
 };
 
 // Vercel Serverless Function Handler
-export default async function handler(req, res) {
-  // 1. 設定 CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
+export default async function handler(req: any, res: any) {
+  // 1. 設定 CORS (包含 OPTIONS 預檢請求的處理)
+  res.setHeader('Access-Control-Allow-Credentials', "true");
+  // 注意：若要允許帶有認證(Credentials)的請求，Origin 不能為 '*'，必須指定確切網域
   res.setHeader('Access-Control-Allow-Origin', 'https://mandyjeng.github.io');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
   );
-  
+
+  // 處理瀏覽器的預檢請求 (Preflight Request)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // 只允許 POST 方法
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
   try {
+    // 2. 檢查 API Key
+    if (!process.env.API_KEY) {
+      throw new Error("Server Error: API_KEY is missing in environment variables.");
+    }
+
     const { type, text, base64Image, defaultCurrency = 'CHF' } = req.body;
     
-    let promptConfig = {};
+    let modelParams: any = {};
     
-    // 根據請求類型組裝不同的 Prompt
+    // 3. 根據請求類型組裝 Prompt
     if (type === 'text') {
-      promptConfig = {
-        model: "gemini-flash-latest",
+      if (!text) throw new Error("缺少文字內容");
+
+      modelParams = {
+        model: "gemini-2.0-flash", // 建議統一使用 2.0-flash 較為穩定
         contents: `這是一趟正在進行中的旅行，目前所在地區的主要貨幣是 ${defaultCurrency}。
           請分析以下記帳資訊： "${text}"。
           規則：
@@ -51,11 +65,18 @@ export default async function handler(req, res) {
           4. 今天日期是 ${new Date().toISOString().split('T')[0]}。`,
       };
     } else if (type === 'image') {
-      promptConfig = {
+      if (!base64Image) throw new Error("缺少圖片資料");
+
+      // 清理 Base64 字串 (移除 data:image/jpeg;base64, 前綴，以免 SDK 報錯)
+      const cleanBase64 = base64Image.includes('base64,') 
+        ? base64Image.split('base64,')[1] 
+        : base64Image;
+
+      modelParams = {
         model: 'gemini-2.0-flash', 
         contents: {
           parts: [
-            { inlineData: { data: base64Image, mimeType: 'image/jpeg' } },
+            { inlineData: { data: cleanBase64, mimeType: 'image/jpeg' } },
             { text: `請精確辨識這張收據的所有細節：
               1. 找出消費店家(merchant)，例如：MIGROS。
               2. 核心任務：在 'item' (項目內容) 欄位，請『逐行』列出收據上看到的所有商品名稱、數量與單價。
@@ -65,28 +86,46 @@ export default async function handler(req, res) {
         },
       };
     } else {
-      throw new Error("Invalid type");
+      throw new Error("Invalid request type: must be 'text' or 'image'");
     }
 
-    // 加入 Schema 設定
+    // 4. 加入 Schema 設定並呼叫 API
     const finalConfig = {
-      ...promptConfig,
+      ...modelParams,
       config: {
         responseMimeType: "application/json",
         responseSchema: expenseSchema,
       },
     };
 
-    // 呼叫 Google API
-    // 注意：舊版 SDK 用法不同，您原本是用 ai.models.generateContent，這裡沿用
     const response = await ai.models.generateContent(finalConfig);
     
-    // 回傳結果
-    const parsedData = JSON.parse(response.text || '{}');
+    // 5. 確保回應內容存在並解析 JSON
+    // 注意：新版 SDK 有時 response.text 是一個方法，有時是屬性，這裡做安全存取
+    const responseText = typeof response.text === 'function' ? response.text() : response.text;
+
+    if (!responseText) {
+      throw new Error("AI 回傳內容為空 (可能被安全性篩選器攔截)");
+    }
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(responseText);
+    } catch (e) {
+      console.error("JSON Parse Error. Raw text:", responseText);
+      throw new Error("AI 回傳格式錯誤，無法解析為 JSON");
+    }
+
+    // 回傳成功結果
     return res.status(200).json(parsedData);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return res.status(500).json({ error: 'AI Processing Failed', details: error.message });
+    
+    // 6. 回傳錯誤訊息給前端 (前端可依此顯示 Alert)
+    return res.status(500).json({ 
+      error: 'AI Processing Failed', 
+      message: error.message || '系統發生未預期的錯誤' 
+    });
   }
 }
