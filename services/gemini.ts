@@ -1,57 +1,55 @@
 // src/services/gemini.ts
 
+// 建立一個共用的請求處理函式，避免重複寫 fetch 邏輯
+const sendRequest = async (payload: any) => {
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  // 嘗試解析 JSON 回傳值 (不論成功或失敗，後端都應該回傳 JSON)
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    // 這裡優先讀取後端回傳的錯誤細節 (error 或 details 或 message)
+    const errorMessage = data?.error || data?.message || data?.details || `API Error: ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return data;
+};
+
 // 處理文字輸入
 export const processAIInput = async (text: string, defaultCurrency: string = 'CHF') => {
   try {
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'text',
-        text: text,
-        defaultCurrency: defaultCurrency,
-      }),
+    return await sendRequest({
+      type: 'text',
+      text: text,
+      defaultCurrency: defaultCurrency,
     });
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
-    }
-
-    return await response.json();
   } catch (error) {
     console.error("Error processing text:", error);
-    return {}; // 或回傳錯誤訊息讓 UI 處理
+    // ⚠️ 關鍵修改：將錯誤往上拋，讓 UI (AllInput.tsx) 可以 catch 到並跳 alert
+    throw error;
   }
 };
 
 // 處理圖片輸入
 export const processReceiptImage = async (base64Image: string) => {
   try {
-    // 移除 base64 的前綴 (例如 data:image/jpeg;base64,) 如果有的話，
-    // 但通常 Google SDK 需要純 base64 字串，請確認這裡傳入的是純字串還是帶有前綴的。
-    // 如果傳入的是帶前綴的，可以在這裡處理，或者確保後端接收正確格式。
+    // 處理 base64 前綴
     const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
 
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'image',
-        base64Image: cleanBase64,
-      }),
+    return await sendRequest({
+      type: 'image',
+      base64Image: cleanBase64,
     });
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
-    }
-
-    return await response.json();
   } catch (error) {
     console.error("Error processing image:", error);
-    return {};
+    // ⚠️ 關鍵修改：將錯誤往上拋
+    throw error;
   }
 };
