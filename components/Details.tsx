@@ -185,9 +185,13 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                           <div className="flex items-center gap-2">
                             <span className="font-black text-lg text-black truncate leading-tight">{t.merchant}</span>
                             {!t.isSplit ? (
-                              <span className="shrink-0 bg-pink-100 text-pink-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-pink-200">個人</span>
+                              <span className="shrink-0 bg-pink-100 text-pink-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-pink-200 flex items-center gap-1">
+                                <ShieldAlert size={10} strokeWidth={3} /> 個人
+                              </span>
                             ) : (
-                              <span className="shrink-0 bg-blue-100 text-blue-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-blue-200">{t.splitWith.length}人分</span>
+                              <span className="shrink-0 bg-blue-100 text-blue-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-blue-200 flex items-center gap-1">
+                                <Users size={10} strokeWidth={3} /> {t.splitWith.length}人
+                              </span>
                             )}
                           </div>
                           <div className="text-base font-bold text-slate-700 truncate leading-snug">{t.item}</div>
@@ -217,11 +221,18 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                         <div className="flex flex-wrap gap-2 items-center flex-1 overflow-hidden">
                           <span className="text-sm font-black text-black shrink-0">分給:</span>
                           <div className="flex flex-wrap gap-2">
-                            {t.splitWith.map(mid => (
-                              <span key={mid} className="text-sm font-black text-black bg-white border-2 border-slate-300 px-3 py-1 rounded-lg whitespace-nowrap">
-                                {state.members.find(m => m.id === mid)?.name}
+                            {/* 若全員分帳，則顯示「全部的人」 */}
+                            {t.isSplit && t.splitWith.length === state.members.length ? (
+                              <span className="text-sm font-black text-black bg-white border-2 border-slate-300 px-3 py-1 rounded-lg whitespace-nowrap">
+                                全部的人
                               </span>
-                            ))}
+                            ) : (
+                              t.splitWith.map(mid => (
+                                <span key={mid} className="text-sm font-black text-black bg-white border-2 border-slate-300 px-3 py-1 rounded-lg whitespace-nowrap">
+                                  {state.members.find(m => m.id === mid)?.name}
+                                </span>
+                              ))
+                            )}
                           </div>
                         </div>
                       </div>
