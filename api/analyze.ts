@@ -55,7 +55,7 @@ export default async function handler(req: any, res: any) {
       if (!text) throw new Error("缺少文字內容");
 
       modelParams = {
-        model: "gemini-1.5-flash",
+        model: "gemini-flash-latest",
         contents: `這是一趟正在進行中的旅行，目前所在地區的主要貨幣是 ${defaultCurrency}。
           請分析以下記帳資訊： "${text}"。
           規則：
@@ -73,7 +73,7 @@ export default async function handler(req: any, res: any) {
         : base64Image;
 
       modelParams = {
-        model: 'gemini-1.5-flash', 
+        model: 'gemini-flash-latest', 
         contents: {
           parts: [
             { inlineData: { data: cleanBase64, mimeType: 'image/jpeg' } },
