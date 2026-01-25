@@ -6,11 +6,14 @@ import Overview from './components/Overview';
 import Details from './components/Details';
 import Settings from './components/Settings';
 import { saveToGoogleSheet, fetchTransactionsFromSheet } from './services/sheets';
-import { RefreshCw, Users as UsersIcon } from 'lucide-react';
+import { RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [isInputActive, setIsInputActive] = useState(false); // 新增：追蹤輸入框是否被選取（鍵盤是否可能彈出）
+  
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('trip_split_state');
     if (saved) return JSON.parse(saved);
@@ -27,6 +30,26 @@ const App: React.FC = () => {
   const updateState = (updates: Partial<AppState>) => {
     setState(prev => ({ ...prev, ...updates }));
   };
+
+  // 自動偵測輸入狀態以隱藏導覽列
+  useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        setIsInputActive(true);
+      }
+    };
+    const handleFocusOut = () => {
+      setIsInputActive(false);
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
+    return () => {
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
 
   const syncFromCloud = useCallback(async (silent = false) => {
     if (!state.sheetUrl) return;
@@ -126,7 +149,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <Overview state={state} onAddTransaction={onAddTransaction} />;
+        return <Overview state={state} onAddTransaction={onAddTransaction} setIsAIProcessing={setIsAIProcessing} />;
       case 'details':
         return (
           <Details 
@@ -144,52 +167,69 @@ const App: React.FC = () => {
     }
   };
 
+  const currentUserObj = state.members.find(m => m.id === state.currentUser);
+  const isGlobalLocked = isSyncing || isAIProcessing;
+
+  // 導覽列隱藏邏輯：AI 處理中、雲端同步中、或使用者正在輸入時隱藏
+  const shouldHideNav = isGlobalLocked || isInputActive;
+
   return (
     <div className="max-w-md mx-auto min-h-screen flex flex-col relative bg-[#FDFCF8] overflow-x-hidden">
-      <header className="px-6 py-6 bg-[#FDFCF8] sticky top-0 z-20 space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              TripSplit <span className="bg-[#F6D32D] text-xs px-2.5 py-1 rounded-full font-black border-2 border-black">AI</span>
-            </h1>
-            <p className="text-slate-400 text-xs mt-1 font-black uppercase tracking-widest">極簡旅遊記帳</p>
-          </div>
-          {isSyncing && (
-            <div className="bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase flex items-center gap-2 animate-bounce comic-border">
-              <RefreshCw size={10} className="animate-spin" />
-              同步中
+      {isGlobalLocked && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 comic-shadow flex flex-col items-center gap-5 scale-110">
+            <div className="relative">
+              <Sparkles size={48} className="text-[#F6D32D] animate-pulse" />
+              <Loader2 size={24} className="absolute -bottom-1 -right-1 text-black animate-spin" />
             </div>
-          )}
+            <div className="flex flex-col items-center">
+              <span className="font-black text-xl italic tracking-widest text-black">AI THINKING...</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">請稍候，正在為您整理帳目</span>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* 優化後的成員排版 */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-          <div className="p-2 bg-slate-100 rounded-lg text-slate-400 shrink-0">
-            <UsersIcon size={16} />
+      <header className="px-4 sm:px-6 py-8 bg-[#FDFCF8] sticky top-0 z-20">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black text-slate-900 flex items-center gap-2">
+              TripSplit <span className="bg-[#F6D32D] text-sm px-3 py-1.5 rounded-full font-black border-2 border-black">AI</span>
+            </h1>
+            <p className="text-slate-400 text-sm font-black uppercase tracking-widest leading-none">極簡旅遊記帳</p>
+            {isSyncing && (
+              <div className="inline-flex mt-3 bg-black text-white px-3 py-1 rounded-full text-[10px] font-black uppercase items-center gap-2 animate-pulse border-2 border-black">
+                <RefreshCw size={10} className="animate-spin" />
+                雲端同步中
+              </div>
+            )}
           </div>
-          {state.members.map((m) => (
-            <div 
-              key={m.id} 
-              className={`h-9 px-4 rounded-xl border-2 border-black flex items-center justify-center font-black text-sm shadow-sm whitespace-nowrap ${state.currentUser === m.id ? 'bg-[#F6D32D]' : 'bg-white'}`}
-            >
-              {m.name}
+          
+          <div className="flex flex-col items-end gap-2">
+            <div className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black text-base comic-shadow-sm whitespace-nowrap">
+              {currentUserObj?.name}
             </div>
-          ))}
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 px-6 pb-32">
+      <main className={`flex-1 px-4 sm:px-6 pb-32 transition-opacity duration-300 ${isGlobalLocked ? 'opacity-50' : 'opacity-100'}`}>
         {renderContent()}
       </main>
 
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white border-2 border-black rounded-3xl p-2 flex justify-between items-center z-40 shadow-xl">
+      {/* 底部導覽列優化：增加 translate-y 隱藏動畫，且在 input 啟動時完全消失 */}
+      <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-white border-[3px] border-black rounded-[2.5rem] p-2 flex justify-between items-center z-40 shadow-2xl transition-all duration-300 transform ${
+        shouldHideNav 
+          ? 'translate-y-[200%] opacity-0 pointer-events-none' 
+          : 'translate-y-0 opacity-100'
+      }`}>
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 transition-all flex-1 py-3 rounded-2xl ${activeTab === tab.id ? 'bg-black text-white shadow-lg' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-4 rounded-[2rem] ${activeTab === tab.id ? 'bg-black text-white shadow-lg' : 'text-slate-300'}`}
           >
-            {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 20 })}
+            {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 24 })}
             <span className="text-xs font-black uppercase tracking-widest">
               {tab.label}
             </span>
