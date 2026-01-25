@@ -173,7 +173,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   >
                     <div className="flex items-start gap-4">
                       <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                        {/* Fix: Explicitly cast ReactElement to any props to allow 'size' property in cloneElement */}
                         {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 24 })}
                       </div>
 
@@ -253,9 +252,10 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               </button>
             </div>
             
-            <div className="space-y-5 sm:space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar pb-6">
+            <div className="space-y-4 sm:space-y-5 max-h-[65vh] overflow-y-auto no-scrollbar pb-6">
+              {/* 基本資訊：日期與店家 */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-[3px] border-black">
+                <div className="bg-slate-50 p-3 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] sm:text-xs font-black text-slate-400 mb-1 block uppercase tracking-wider">日期</label>
                   <input 
                     type="date"
@@ -264,7 +264,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                     onChange={e => setEditingItem({...editingItem, date: e.target.value})}
                   />
                 </div>
-                <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-[3px] border-black">
+                <div className="bg-slate-50 p-3 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] sm:text-xs font-black text-slate-400 mb-1 block uppercase tracking-wider">店家</label>
                   <input 
                     className="w-full bg-transparent font-black text-base sm:text-lg outline-none p-0 text-slate-950"
@@ -274,22 +274,9 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border-[3px] border-black">
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <label className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">項目內容</label>
-                  <span className={`text-[9px] sm:text-[11px] font-black px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg border-2 ${editingItem.isSplit ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-pink-100 text-pink-700 border-pink-200'}`}>
-                    {editingItem.type}
-                  </span>
-                </div>
-                <textarea 
-                  className="w-full bg-transparent font-bold text-base sm:text-lg min-h-[70px] sm:min-h-[90px] outline-none leading-relaxed p-0 text-slate-950"
-                  value={editingItem.item}
-                  onChange={e => setEditingItem({...editingItem, item: e.target.value})}
-                />
-              </div>
-
+              {/* 金額區塊 */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-[#FFFDF0] p-3 sm:p-4 rounded-xl sm:rounded-2xl border-[3px] border-[#E64A4A]">
+                <div className="bg-[#FFFDF0] p-3 rounded-xl border-[3px] border-[#E64A4A]">
                   <label className="text-[10px] sm:text-[11px] font-black text-[#E64A4A] mb-1 block uppercase tracking-tighter">台幣金額</label>
                   <input 
                     type="number"
@@ -298,7 +285,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                     onChange={e => setEditingItem({...editingItem, ntdAmount: e.target.value ? Number(e.target.value) : 0})}
                   />
                 </div>
-                <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-[3px] border-black">
+                <div className="bg-slate-50 p-3 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] sm:text-[11px] font-black text-slate-400 mb-1 block uppercase tracking-wider">外幣 ({editingItem.currency})</label>
                   <input 
                     type="number"
@@ -309,8 +296,9 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
+              {/* 分類與付款人 */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-[3px] border-black">
+                <div className="bg-slate-50 p-3 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] sm:text-xs font-black text-slate-400 mb-1 block uppercase tracking-widest">分類</label>
                   <select 
                     className="w-full bg-transparent font-black text-base sm:text-lg appearance-none outline-none p-0 text-slate-950"
@@ -320,7 +308,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-[3px] border-black">
+                <div className="bg-slate-50 p-3 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] sm:text-xs font-black text-slate-400 mb-1 block uppercase tracking-widest">付款人</label>
                   <select 
                     className="w-full bg-transparent font-black text-base sm:text-lg appearance-none outline-none p-0 text-slate-950"
@@ -332,19 +320,20 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] border-[3px] border-black">
-                <label className="text-[10px] sm:text-[11px] font-black text-slate-400 mb-3 sm:mb-4 block uppercase tracking-widest">參與分帳人員</label>
-                <div className="flex flex-wrap gap-2 sm:gap-3">
+              {/* 優化後的參與分帳人員：縮小區塊並讓五個人名顯示在一行 */}
+              <div className="bg-slate-50 p-3 rounded-2xl border-[3px] border-black">
+                <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">參與分帳人員</label>
+                <div className="flex flex-nowrap gap-1 overflow-x-auto no-scrollbar">
                   {state.members.map(m => (
                     <button
                       key={m.id}
                       disabled={!editingItem.isSplit}
                       onClick={() => toggleSplitMember(m.id)}
-                      className={`px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl text-sm sm:text-base font-black border-[3px] border-black transition-all ${
+                      className={`flex-1 min-w-0 py-2 px-1 rounded-xl text-xs font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
                         !editingItem.isSplit ? 'opacity-30' : ''
                       } ${
                         editingItem.splitWith?.includes(m.id) 
-                          ? 'bg-[#F6D32D] text-black shadow-sm translate-y-[-2px]' 
+                          ? 'bg-[#F6D32D] text-black border-black shadow-sm' 
                           : 'bg-white text-slate-300 border-slate-100'
                       }`}
                     >
@@ -353,20 +342,36 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   ))}
                 </div>
               </div>
+
+              {/* 項目內容：維持大區塊置於最下層 */}
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] border-[3px] border-black">
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">項目內容 (收據清單)</label>
+                  <span className={`text-[9px] sm:text-[11px] font-black px-2 py-0.5 rounded-lg border-2 ${editingItem.isSplit ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-pink-100 text-pink-700 border-pink-200'}`}>
+                    {editingItem.type}
+                  </span>
+                </div>
+                <textarea 
+                  className="w-full bg-transparent font-bold text-base sm:text-lg min-h-[140px] sm:min-h-[180px] outline-none leading-relaxed p-0 text-slate-950 resize-none"
+                  placeholder="輸入收據品項詳情..."
+                  value={editingItem.item}
+                  onChange={e => setEditingItem({...editingItem, item: e.target.value})}
+                />
+              </div>
             </div>
 
-            <div className="flex gap-4 sm:gap-5 mt-8 sm:mt-10">
+            <div className="flex gap-4 sm:gap-5 mt-6 sm:mt-8">
               <button 
                 disabled={isSaving}
                 onClick={() => handleDelete(editingItem)}
-                className="p-4 sm:p-5 bg-white border-[3px] border-red-200 text-red-500 rounded-[1.5rem] sm:rounded-3xl active:scale-95 transition-all shadow-sm"
+                className="p-4 bg-white border-[3px] border-red-200 text-red-500 rounded-2xl active:scale-95 transition-all shadow-sm"
               >
-                <Trash2 size={28} strokeWidth={3} />
+                <Trash2 size={24} strokeWidth={3} />
               </button>
               <button 
                 disabled={isSaving}
                 onClick={handleSaveEdit}
-                className="flex-1 py-4 sm:py-5 bg-black text-white rounded-[1.5rem] sm:rounded-3xl font-black comic-shadow-sm flex items-center justify-center gap-2 sm:gap-3 active:translate-y-1 transition-all disabled:opacity-50 text-lg sm:text-xl"
+                className="flex-1 py-4 bg-black text-white rounded-2xl font-black comic-shadow-sm flex items-center justify-center gap-2 active:translate-y-1 transition-all disabled:opacity-50 text-lg sm:text-xl"
               >
                 {isSaving ? <Loader2 className="animate-spin" size={24} /> : <Save size={20} strokeWidth={3} />}
                 {isSaving ? '儲存中' : '儲存修改'}
