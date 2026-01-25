@@ -324,27 +324,32 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* 整合後的橫向滿版專業大卡片 */}
+      <div className="w-full">
         <button 
           onClick={() => fileInputRef.current?.click()}
-          className="bg-white border-[3px] border-black rounded-[2rem] py-8 flex flex-col items-center justify-center gap-4 comic-shadow hover:-translate-y-1 transition-transform"
+          className="w-full bg-white border-[3px] border-black rounded-[2.5rem] py-6 px-8 flex items-center justify-between comic-shadow hover:-translate-y-1 transition-all group overflow-hidden"
         >
-          <div className="p-5 bg-[#E64A4A] rounded-2xl text-white comic-border">
-            <Camera size={32} strokeWidth={3} />
+          {/* 左側：拍照辨識區 */}
+          <div className="flex items-center gap-6">
+            <div className="p-4 bg-[#E64A4A] rounded-2xl text-white comic-border shadow-sm group-active:scale-95 transition-transform shrink-0">
+              <Camera size={32} strokeWidth={3} />
+            </div>
+            <div className="text-left">
+              <span className="block text-xl font-black text-black leading-tight mb-1">上傳收據讓AI幫你</span>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">自動辨識品項與金額</span>
+            </div>
           </div>
-          <span className="text-xs font-black uppercase tracking-widest">拍照辨識收據</span>
+
+          {/* 右側：幣別資訊區（帶垂直線） */}
+          <div className="flex items-center pl-8 border-l-2 border-slate-100 h-14">
+            <div className="flex flex-col items-center gap-1.5">
+              <Coins size={24} className="text-[#F6D32D]" strokeWidth={3.5} />
+              <span className="text-[13px] font-black text-black tracking-wider uppercase leading-none">{defaultCurrency}</span>
+            </div>
+          </div>
         </button>
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-        
-        {/* 優化後的預設幣別區塊 */}
-        <div className="bg-white border-[3px] border-black rounded-[2rem] py-8 flex flex-col items-center justify-center gap-4 comic-shadow">
-          <div className="p-5 bg-[#F6D32D] rounded-2xl text-black comic-border">
-            <Coins size={32} strokeWidth={3} />
-          </div>
-          <div className="flex flex-col items-center">            
-            <span className="text-xl font-black text-black tracking-wider">{defaultCurrency}</span>
-          </div>
-        </div>
       </div>
     </div>
   );
