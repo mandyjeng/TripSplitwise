@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Send, Loader2, Check, CreditCard, Store, Sparkles, User, Users, Tag, Coins } from 'lucide-react';
+import { Camera, Send, Loader2, Check, Sparkles, Coins } from 'lucide-react';
 import { processAIInput, processReceiptImage } from '../services/gemini';
 import { Transaction, Category, Member } from '../types';
 import { CATEGORIES } from '../constants';
@@ -127,15 +127,16 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
   if (pendingRecord) {
     return (
-      <div className="bg-white border-[3px] border-black rounded-[2rem] p-5 sm:p-8 comic-shadow animate-in zoom-in-95 duration-200">
+      <div className="bg-white border-[3px] border-black rounded-[2rem] p-5 sm:p-7 comic-shadow animate-in zoom-in-95 duration-200">
         <h3 className="font-black text-xl sm:text-2xl mb-6 flex items-center gap-3 text-slate-900">
           <Check className="text-green-500" size={24} strokeWidth={4} /> 確認消費明細
         </h3>
         
-        <div className="space-y-4 sm:space-y-5 max-h-[65vh] overflow-y-auto no-scrollbar pb-2">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">日期</label>
+        <div className="space-y-3.5 max-h-[68vh] overflow-y-auto no-scrollbar pb-2">
+          {/* 基本資訊：日期與店家 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
+              <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">日期</label>
               <input 
                 type="date"
                 className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0"
@@ -143,8 +144,8 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                 onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})}
               />
             </div>
-            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">店家</label>
+            <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
+              <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">店家</label>
               <input 
                 className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0"
                 value={pendingRecord.merchant}
@@ -153,18 +154,42 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
           </div>
 
-          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
-            <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">項目內容</label>
-            <textarea 
-              className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-bold min-h-[50px] sm:min-h-[60px] leading-snug text-slate-900 p-0"
-              value={pendingRecord.item}
-              onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})}
-            />
+          {/* 金額區塊 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#FFFDF0] p-2.5 rounded-xl border-[3px] border-[#E64A4A]">
+              <label className="text-[10px] font-black text-[#E64A4A] mb-0.5 block uppercase tracking-tighter">台幣金額</label>
+              <input 
+                ref={ntdInputRef}
+                type="number"
+                placeholder="0"
+                className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0"
+                value={pendingRecord.ntdAmount || ''}
+                onChange={e => setPendingRecord({...pendingRecord, ntdAmount: e.target.value ? Number(e.target.value) : 0})}
+              />
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
+              <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">外幣金額</label>
+              <div className="flex items-center">
+                <input 
+                  className="text-[10px] sm:text-sm font-black mr-1 text-slate-400 w-10 bg-transparent border-none p-0 focus:ring-0 uppercase"
+                  value={pendingRecord.currency}
+                  onChange={e => handleCurrencyChange(e.target.value.toUpperCase())}
+                />
+                <input 
+                  type="number"
+                  placeholder="0"
+                  className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0"
+                  value={pendingRecord.originalAmount || ''}
+                  onChange={e => handleOriginalAmountChange(e.target.value ? Number(e.target.value) : 0)}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">分類</label>
+          {/* 分類與付款人 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
+              <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">分類</label>
               <select 
                 className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black appearance-none text-slate-900 p-0"
                 value={pendingRecord.category}
@@ -173,8 +198,8 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">付款人</label>
+            <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
+              <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">付款人</label>
               <select 
                 className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black appearance-none text-slate-900 p-0"
                 value={pendingRecord.payerId}
@@ -192,42 +217,12 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">外幣金額</label>
-              <div className="flex items-center">
-                <input 
-                  className="text-[10px] sm:text-sm font-black mr-1 text-slate-400 w-10 sm:w-12 bg-transparent border-none p-0 focus:ring-0 uppercase"
-                  value={pendingRecord.currency}
-                  onChange={e => handleCurrencyChange(e.target.value.toUpperCase())}
-                />
-                <input 
-                  type="number"
-                  placeholder="0"
-                  className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0"
-                  value={pendingRecord.originalAmount || ''}
-                  onChange={e => handleOriginalAmountChange(e.target.value ? Number(e.target.value) : 0)}
-                />
-              </div>
-            </div>
-            <div className="bg-[#FFFDF0] p-3 sm:p-4 rounded-xl border-[3px] border-black">
-              <label className="text-[9px] sm:text-[10px] font-black text-[#E64A4A] mb-1 block uppercase tracking-tighter">台幣金額</label>
-              <input 
-                ref={ntdInputRef}
-                type="number"
-                placeholder="0"
-                className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black placeholder:text-slate-300 text-slate-900 p-0"
-                value={pendingRecord.ntdAmount || ''}
-                onChange={e => setPendingRecord({...pendingRecord, ntdAmount: e.target.value ? Number(e.target.value) : 0})}
-              />
-            </div>
-          </div>
-
-          <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-slate-200">
-            <div className="flex justify-between items-center mb-3 sm:mb-4">
+          {/* 參與分帳人員：優化排版縮小區塊並單行橫向分佈 */}
+          <div className="bg-slate-50 p-3 rounded-2xl border-[3px] border-black">
+            <div className="flex justify-between items-center mb-2">
               <div className="flex flex-col">
-                <label className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">是否拆帳</label>
-                <span className={`text-[9px] sm:text-[10px] font-black ${pendingRecord.isSplit ? 'text-blue-500' : 'text-pink-500'}`}>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">參與分帳人員</label>
+                <span className={`text-[8px] font-black mt-1 ${pendingRecord.isSplit ? 'text-blue-500' : 'text-pink-500'}`}>
                   (類型: {pendingRecord.isSplit ? '公帳' : '私帳'})
                 </span>
               </div>
@@ -251,21 +246,21 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                   }
                   setPendingRecord({...pendingRecord, ...updates});
                 }}
-                className="w-6 h-6 sm:w-7 sm:h-7 border-[3px] border-black rounded-lg"
+                className="w-5 h-5 border-[2px] border-black rounded-lg"
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-nowrap gap-1 overflow-x-auto no-scrollbar pt-1">
               {members.map(m => (
                 <button
                   key={m.id}
                   disabled={!pendingRecord.isSplit}
                   onClick={() => toggleSplitMember(m.id)}
-                  className={`px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black border-[3px] border-black transition-all ${
+                  className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg text-[11px] font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
                     !pendingRecord.isSplit ? 'opacity-30' : ''
                   } ${
                     pendingRecord.splitWith?.includes(m.id) 
-                      ? 'bg-[#F6D32D] text-black shadow-sm translate-y-[-2px]' 
-                      : 'bg-white text-slate-300 border-slate-200'
+                      ? 'bg-[#F6D32D] text-black border-black shadow-sm' 
+                      : 'bg-white text-slate-300 border-slate-100'
                   }`}
                 >
                   {m.name}
@@ -274,20 +269,31 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
           </div>
 
-          <div className="flex gap-3 sm:gap-4 pt-3 sm:pt-4">
-            <button 
-              onClick={() => setPendingRecord(null)}
-              className="flex-1 py-4 sm:py-5 bg-white border-[3px] border-slate-200 rounded-2xl font-black text-slate-400 text-base sm:text-lg active:scale-95 transition-all"
-            >
-              取消
-            </button>
-            <button 
-              onClick={confirmRecord}
-              className="flex-[2] py-4 sm:py-5 bg-black text-white rounded-2xl font-black comic-shadow text-base sm:text-lg active:translate-y-1 transition-all"
-            >
-              確認送出
-            </button>
+          {/* 項目內容：移至最底部並極大化 */}
+          <div className="bg-slate-50 p-3.5 rounded-2xl border-[3px] border-black">
+            <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">項目內容 (收據清單)</label>
+            <textarea 
+              className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-bold min-h-[150px] sm:min-h-[190px] leading-relaxed text-slate-900 p-0 resize-none"
+              placeholder="收據詳細品項..."
+              value={pendingRecord.item}
+              onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})}
+            />
           </div>
+        </div>
+
+        <div className="flex gap-4 mt-5">
+          <button 
+            onClick={() => setPendingRecord(null)}
+            className="flex-1 py-4 bg-white border-[3px] border-slate-200 rounded-2xl font-black text-slate-400 text-base active:scale-95 transition-all"
+          >
+            取消
+          </button>
+          <button 
+            onClick={confirmRecord}
+            className="flex-[2] py-4 bg-black text-white rounded-2xl font-black comic-shadow-sm text-base active:translate-y-1 transition-all"
+          >
+            確認送出
+          </button>
         </div>
       </div>
     );
@@ -326,7 +332,6 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
         >
           <div className="flex items-center gap-4 sm:gap-6 min-w-0">
             <div className="p-3 sm:p-4 bg-[#E64A4A] rounded-2xl text-white comic-border shadow-sm group-active:scale-95 transition-transform shrink-0">
-              {/* Fix: Lucide icons do not support responsive props like sm:size. Using Tailwind classes for responsiveness instead. */}
               <Camera className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={3} />
             </div>
             <div className="text-left truncate">
@@ -337,7 +342,6 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
           <div className="flex items-center pl-4 sm:pl-8 border-l-2 border-slate-100 h-10 sm:h-14 shrink-0">
             <div className="flex flex-col items-center gap-1">
-              {/* Fix: Lucide icons do not support responsive props like sm:size. Using Tailwind classes for responsiveness instead. */}
               <Coins className="text-[#F6D32D] w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3.5} />
               <span className="text-[11px] sm:text-[13px] font-black text-black tracking-wider uppercase leading-none">{defaultCurrency}</span>
             </div>
