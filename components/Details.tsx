@@ -206,7 +206,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                               <span className="shrink-0 bg-blue-100 text-blue-700 text-[10px] font-black px-1.5 py-0.5 rounded-md border-2 border-blue-200">{t.splitWith.length}人</span>
                             )}
                           </div>
-                          <div className="text-sm sm:text-base font-bold text-slate-700 truncate leading-snug">{t.item}</div>
+                          {/* 優化列表項目顯示：支援多行並限制高度 */}
+                          <div className="text-[13px] sm:text-sm font-bold text-slate-700 leading-snug whitespace-pre-line line-clamp-2">{t.item}</div>
                         </div>
                       </div>
 
@@ -369,7 +370,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   </span>
                 </div>
                 <textarea 
-                  className="w-full bg-transparent font-bold text-sm sm:text-base min-h-[150px] sm:min-h-[190px] outline-none leading-relaxed p-0 text-slate-950 resize-none"
+                  className="w-full bg-transparent font-bold text-sm sm:text-base min-h-[150px] sm:min-h-[190px] outline-none leading-relaxed p-0 text-slate-950 resize-none whitespace-pre-wrap"
                   placeholder="輸入收據品項詳情..."
                   value={editingItem.item}
                   onChange={e => setEditingItem({...editingItem, item: e.target.value})}

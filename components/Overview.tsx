@@ -131,7 +131,6 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
             <div key={t.id} className="bg-white comic-border p-5 sm:p-7 rounded-[2.5rem] flex flex-col gap-5 sm:gap-6 comic-shadow transition-all relative group overflow-hidden">
               <div className="flex items-start gap-4">
                 <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-1 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                  {/* Fix: Explicitly cast ReactElement to any props to allow 'size' property in cloneElement */}
                   {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 24 })}
                 </div>
 
@@ -140,7 +139,8 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
                     <div className="flex items-center gap-2">
                       <span className="font-black text-lg text-black truncate leading-tight">{t.merchant}</span>
                     </div>
-                    <div className="text-base font-bold text-slate-700 truncate leading-snug">{t.item}</div>
+                    {/* 優化首頁清單項目顯示：支援多行並限制高度 */}
+                    <div className="text-[13px] sm:text-sm font-bold text-slate-700 leading-snug whitespace-pre-line line-clamp-2">{t.item}</div>
                   </div>
                 </div>
 

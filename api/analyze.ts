@@ -18,6 +18,15 @@ const expenseSchema = {
   required: ['merchant', 'item', 'amount', 'currency', 'category', 'date'],
 };
 
+// 清洗 AI 回傳的字串，處理過度轉義的換行符號
+const sanitizeResult = (data: any) => {
+  if (data && typeof data.item === 'string') {
+    // 將字面上的 \n 轉為真正的換行，並移除可能出現的 \r
+    data.item = data.item.replace(/\\n/g, '\n').replace(/\\r/g, '');
+  }
+  return data;
+};
+
 // Vercel Serverless Function Handler
 export default async function handler(req: any, res: any) {
   // 1. 設定 CORS (包含 OPTIONS 預檢請求的處理)
@@ -91,7 +100,8 @@ export default async function handler(req: any, res: any) {
               ------------------
               [收據上的原始品項內容、數量與單價]
             2. 確保翻譯位於上半部，分隔線在中間，原文在下半部。
-            3. 準確辨識總金額(amount)、幣別(currency)、店家(merchant)與日期(date)。` }
+            3. 請直接使用真正的換行字元，不要輸出字面上的 \\n 字串。
+            4. 準確辨識總金額(amount)、幣別(currency)、店家(merchant)與日期(date)。` }
           ]
         },
       };
@@ -120,7 +130,7 @@ export default async function handler(req: any, res: any) {
 
     let parsedData;
     try {
-      parsedData = JSON.parse(responseText);
+      parsedData = sanitizeResult(JSON.parse(response.text || '{}'));
     } catch (e) {
       console.error("JSON Parse Error. Raw text:", responseText);
       throw new Error("AI 回傳格式錯誤，無法解析為 JSON");
