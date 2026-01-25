@@ -1,155 +1,130 @@
 // api/analyze.ts
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
-// 初始化 Gemini (在伺服器端執行，process.env 讀取是安全的)
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+// ⚠️ 注意：建議改用穩定版 SDK: npm install @google/generative-ai
+// 如果您原本是用 @google/genai (新版)，請確認 import 對應，
+// 但以下代碼我改寫為目前最通用的 @google/generative-ai 寫法，最穩。
 
-// 定義 Schema
+export const config = {
+  runtime: 'edge', // 建議：使用 Edge Runtime 速度更快，且不會有冷啟動問題
+};
+
+// 定義 Schema (使用標準 JSON Schema 格式)
 const expenseSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
-    merchant: { type: Type.STRING, description: '消費店家名稱（如：Starbucks, Migros, Coop）' },
-    item: { type: Type.STRING, description: '項目內容。請務必逐行列出收據上的所有商品品項。如果是手動輸入如「飲料2」，則項目內容為「飲料」。' },
-    amount: { type: Type.NUMBER, description: '外幣金額 (原始收據上的總金額)' },
-    currency: { type: Type.STRING, description: '幣別，如 CHF, EUR, JPY, TWD' },
-    category: { type: Type.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險' },
-    date: { type: Type.STRING, description: '日期，格式 YYYY-MM-DD。請從收據中找出交易日期。' },
+    merchant: { type: SchemaType.STRING, description: '消費店家名稱' },
+    item: { type: SchemaType.STRING, description: '項目內容，請逐行列出商品。' },
+    amount: { type: SchemaType.NUMBER, description: '總金額' },
+    currency: { type: SchemaType.STRING, description: '幣別 (CHF, TWD, etc)' },
+    category: { type: SchemaType.STRING, description: '分類：住宿、交通、門票、用餐、雜項' },
+    date: { type: SchemaType.STRING, description: 'YYYY-MM-DD' },
   },
   required: ['merchant', 'item', 'amount', 'currency', 'category', 'date'],
 };
 
-// Vercel Serverless Function Handler
-export default async function handler(req: any, res: any) {
-  // 1. 設定 CORS (包含 OPTIONS 預檢請求的處理)
-  res.setHeader('Access-Control-Allow-Credentials', "true");
-  // 注意：若要允許帶有認證(Credentials)的請求，Origin 不能為 '*'，必須指定確切網域
-  res.setHeader('Access-Control-Allow-Origin', 'https://mandyjeng.github.io');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+export default async function handler(req: any) {
+  // 1. CORS 處理 (支援 Localhost 開發)
+  const origin = req.headers.get('origin');
+  const allowedOrigins = ['https://mandyjeng.github.io', 'http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'];
+  
+  // 如果請求來源在允許清單內，就回傳該來源；否則回傳 GitHub (生產環境保底)
+  const allowOrigin = allowedOrigins.includes(origin) ? origin : 'https://mandyjeng.github.io';
 
-  // 處理瀏覽器的預檢請求 (Preflight Request)
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  // 只允許 POST 方法
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return new Response(JSON.stringify({ message: 'Method Not Allowed' }), { 
+      status: 405, headers: corsHeaders 
+    });
   }
 
   try {
-    // 2. 檢查 API Key
-    if (!process.env.GOOGLE_API_KEY) {
-      throw new Error("Server Error: GOOGLE_API_KEY is missing in environment variables.");
-    }
+    const { GOOGLE_API_KEY } = process.env;
+    if (!GOOGLE_API_KEY) throw new Error("Server Error: Missing API Key");
 
-    const { type, text, base64Image, defaultCurrency = 'CHF' } = req.body;
+    // 2. 初始化 (每一次請求重新 new 是安全的，特別是在 Edge Runtime)
+    const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
     
-    let modelParams: any = {};
-    
-    // 3. 根據請求類型組裝 Prompt
-    if (type === 'text') {
-      if (!text) throw new Error("缺少文字內容");
-
-      modelParams = {
-        model: "gemini-flash-latest", // 建議統一使用 2.0-flash 較為穩定
-        contents: `這是一趟正在進行中的旅行，目前所在地區的主要貨幣是 ${defaultCurrency}。
-          請分析以下記帳資訊： "${text}"。
-          規則：
-          1. 如果使用者輸入如「品項+數字」（例如：飲料2、巧克力 7），請將數字判定為 'amount'（金額），文字判定為 'item'（項目內容）。
-          2. 幣別優先判定為 ${defaultCurrency}。
-          3. 如果沒有明確店家，店家(merchant)可與項目內容相同。
-          4. 今天日期是 ${new Date().toISOString().split('T')[0]}。`,
-      };
-    } else if (type === 'image') {
-      if (!base64Image) throw new Error("缺少圖片資料");
-
-      // 清理 Base64 字串 (移除 data:image/jpeg;base64, 前綴，以免 SDK 報錯)
-      const cleanBase64 = base64Image.includes('base64,') 
-        ? base64Image.split('base64,')[1] 
-        : base64Image;
-
-      modelParams = {
-        model: 'gemini-2.0-flash', 
-        contents: {
-          parts: [
-            { inlineData: { data: cleanBase64, mimeType: 'image/jpeg' } },
-            { text: `請精確辨識這張收據的所有細節：
-              1. 找出消費店家(merchant)，例如：MIGROS。
-              2. 核心任務：在 'item' (項目內容) 欄位，請『逐行』列出收據上看到的所有商品名稱、數量與單價。
-              3. 準確抓取最終付款的總金額(amount)與幣別(currency)。
-              4. 辨識收據上的交易日期(date)，格式轉為 YYYY-MM-DD。` }
-          ]
-        },
-      };
-    } else {
-      throw new Error("Invalid request type: must be 'text' or 'image'");
-    }
-
-    // 4. 加入 Schema 設定並呼叫 API
-    const finalConfig = {
-      ...modelParams,
-      config: {
+    // ⚠️ 關鍵修正：鎖定使用 gemini-1.5-flash (最穩定、免費額度最正常)
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: expenseSchema,
-      },
-    };
+      }
+    });
 
-    const response = await ai.models.generateContent(finalConfig);
-    
-    // 5. 確保回應內容存在並解析 JSON
-    // 注意：新版 SDK 有時 response.text 是一個方法，有時是屬性，這裡做安全存取
-    const responseText = typeof response.text === 'function' ? response.text() : response.text;
+    // 讀取 Request Body (Edge Runtime 寫法)
+    const body = await req.json();
+    const { type, text, base64Image, defaultCurrency = 'CHF' } = body;
 
-    if (!responseText) {
-      throw new Error("AI 回傳內容為空 (可能被安全性篩選器攔截)");
+    let result;
+
+    // 3. 執行 AI
+    if (type === 'text') {
+      const prompt = `
+        分析記帳資訊："${text}"。
+        目前幣別：${defaultCurrency}。日期：${new Date().toISOString().split('T')[0]}。
+        規則：
+        1. 數字是金額(amount)，文字是項目(item)。
+        2. 若無店家，merchant填寫項目名稱。
+      `;
+      result = await model.generateContent(prompt);
+
+    } else if (type === 'image') {
+      if (!base64Image) throw new Error("No image data");
+      
+      // 簡單清理 base64
+      const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
+
+      const prompt = `
+        辨識收據：
+        1. Merchant: 店家名稱。
+        2. Item: 所有商品名稱。
+        3. Amount: 總金額 (數字)。
+        4. Currency: 幣別符號。
+        5. Date: 交易日期 (YYYY-MM-DD)。
+      `;
+
+      result = await model.generateContent([
+        { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
+        { text: prompt }
+      ]);
     }
 
-    let parsedData;
-    try {
-      parsedData = JSON.parse(responseText);
-    } catch (e) {
-      console.error("JSON Parse Error. Raw text:", responseText);
-      throw new Error("AI 回傳格式錯誤，無法解析為 JSON");
-    }
+    const responseText = result?.response.text();
+    const data = JSON.parse(responseText || '{}');
 
-    // 回傳成功結果
-    return res.status(200).json(parsedData);
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error: any) {
-   console.error("Gemini API Error:", error);
+    console.error("API Error:", error);
 
-    // 1. 專門捕捉 429 (配額額滿) 錯誤
-    // Google SDK 的錯誤物件結構比較深，有時候 status 在 response 裡，有時候在外面
-    const isQuotaError = error.status === 429 || 
-                         error.response?.status === 429 || 
-                         error.message?.includes('429') ||
-                         error.message?.includes('Quota exceeded');
+    // 錯誤處理
+    let status = 500;
+    let message = 'Internal Server Error';
 
-    if (isQuotaError) {
-      return res.status(429).json({ 
-        error: 'QUOTA_EXCEEDED', 
-        message: '⚠️ API 免費額度已滿或請求過快。請休息約 1 分鐘後再試。' 
-      });
+    if (error.message?.includes('429')) {
+      status = 429;
+      message = 'API 額度忙碌中，請稍後再試 (Quota Exceeded)';
     }
 
-    // 2. 捕捉安全性篩選錯誤 (常見於收據包含敏感關鍵字)
-    if (error.message?.includes('SAFETY') || error.message?.includes('blocked')) {
-      return res.status(400).json({
-        error: 'SAFETY_BLOCK',
-        message: '⚠️ 內容被 AI 安全性篩選器攔截，無法處理。'
-      });
-    }
-
-    // 3. 其他未知錯誤
-    // 為了版面整潔，我們只回傳 error.message 的重點，或給通用訊息
-    return res.status(500).json({ 
-      error: 'AI_PROCESSING_ERROR', 
-      message: error.message || '系統發生未知錯誤，請稍後再試。' 
+    return new Response(JSON.stringify({ error: message, details: error.message }), {
+      status: status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
-  
   }
 }
