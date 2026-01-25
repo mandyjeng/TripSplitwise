@@ -78,7 +78,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     .filter(t => filterCategory === '全部' || t.category === filterCategory)
     .filter(t => {
       if (filterMemberId === '全部') return true;
-      // 過濾規則：是付款人 或 在拆帳名單中
       return t.payerId === filterMemberId || (t.isSplit && t.splitWith.includes(filterMemberId));
     })
     .filter(t => 
@@ -112,15 +111,17 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
           </button>
         </div>
 
-        <div className="space-y-3">
-          {/* 分類過濾 */}
-          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
+        <div className="space-y-4">
+          {/* 分類篩選：維持平舖 */}
+          <div className="flex flex-wrap gap-2">
             {['全部', ...CATEGORIES].map(c => (
               <button 
                 key={c}
                 onClick={() => setFilterCategory(c as any)}
-                className={`px-6 py-2.5 rounded-2xl text-sm font-black comic-border whitespace-nowrap transition-all ${
-                  filterCategory === c ? 'bg-black text-white' : 'bg-white text-black'
+                className={`px-4 py-2 rounded-xl text-[13px] font-black border-2 whitespace-nowrap transition-all ${
+                  filterCategory === c 
+                    ? 'bg-black text-white border-black shadow-sm' 
+                    : 'bg-white text-black border-black/10 hover:border-black'
                 }`}
               >
                 {c}
@@ -128,11 +129,11 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             ))}
           </div>
 
-          {/* 成員過濾 */}
-          <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+          {/* 優化後的成員篩選：單行排列且不使用圖示 */}
+          <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-1">
             <button 
               onClick={() => setFilterMemberId('全部')}
-              className={`px-5 py-2 rounded-xl text-sm font-black border-2 transition-all whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-[13px] font-black border-2 transition-all whitespace-nowrap flex-shrink-0 ${
                 filterMemberId === '全部' ? 'bg-[#F6D32D] border-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'
               }`}
             >
@@ -142,13 +143,10 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               <button 
                 key={m.id}
                 onClick={() => setFilterMemberId(m.id)}
-                className={`px-5 py-2 rounded-xl text-sm font-black border-2 transition-all whitespace-nowrap flex items-center gap-2 ${
-                  filterMemberId === m.id ? 'bg-[#F6D32D] border-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'
+                className={`px-4 py-2 rounded-xl text-[13px] font-black border-2 transition-all whitespace-nowrap flex-shrink-0 ${
+                  filterMemberId === m.id ? 'bg-[#F6D32D] border-black shadow-sm text-black' : 'bg-slate-50 border-slate-100 text-slate-400'
                 }`}
               >
-                <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] ${filterMemberId === m.id ? 'bg-white' : 'bg-slate-200'}`}>
-                  {m.name.charAt(0).toUpperCase()}
-                </div>
                 {m.name}
               </button>
             ))}
@@ -185,13 +183,9 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                           <div className="flex items-center gap-2">
                             <span className="font-black text-lg text-black truncate leading-tight">{t.merchant}</span>
                             {!t.isSplit ? (
-                              <span className="shrink-0 bg-pink-100 text-pink-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-pink-200 flex items-center gap-1">
-                                <ShieldAlert size={10} strokeWidth={3} /> 個人
-                              </span>
+                              <span className="shrink-0 bg-pink-100 text-pink-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-pink-200">個人</span>
                             ) : (
-                              <span className="shrink-0 bg-blue-100 text-blue-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-blue-200 flex items-center gap-1">
-                                <Users size={10} strokeWidth={3} /> {t.splitWith.length}人
-                              </span>
+                              <span className="shrink-0 bg-blue-100 text-blue-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-blue-200">{t.splitWith.length}人</span>
                             )}
                           </div>
                           <div className="text-base font-bold text-slate-700 truncate leading-snug">{t.item}</div>
@@ -221,7 +215,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                         <div className="flex flex-wrap gap-2 items-center flex-1 overflow-hidden">
                           <span className="text-sm font-black text-black shrink-0">分給:</span>
                           <div className="flex flex-wrap gap-2">
-                            {/* 若全員分帳，則顯示「全部的人」 */}
                             {t.isSplit && t.splitWith.length === state.members.length ? (
                               <span className="text-sm font-black text-black bg-white border-2 border-slate-300 px-3 py-1 rounded-lg whitespace-nowrap">
                                 全部的人
