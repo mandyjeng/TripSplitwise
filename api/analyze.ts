@@ -9,7 +9,7 @@ const expenseSchema = {
   type: Type.OBJECT,
   properties: {
     merchant: { type: Type.STRING, description: '消費店家名稱（如：Starbucks, Migros, Coop）' },
-    item: { type: Type.STRING, description: '項目內容。請務必逐行列出收據上的所有商品品項。如果是手動輸入如「飲料2」，則項目內容為「飲料」。' },
+    item: { type: Type.STRING, description: '項目內容。請依照格式：[繁體中文翻譯] 換行 ------------------ 換行 [收據原文細節]' },
     amount: { type: Type.NUMBER, description: '外幣金額 (原始收據上的總金額)' },
     currency: { type: Type.STRING, description: '幣別，如 CHF, EUR, JPY, TWD' },
     category: { type: Type.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險' },
@@ -79,7 +79,10 @@ export default async function handler(req: any, res: any) {
             { inlineData: { data: cleanBase64, mimeType: 'image/jpeg' } },
             { text: `請精確辨識這張收據的所有細節：
               1. 找出消費店家(merchant)，例如：MIGROS。
-              2. 核心任務：在 'item' (項目內容) 欄位，請『逐行』列出收據上看到的所有商品名稱、數量與單價。
+               2. 核心任務：在 'item' (項目內容) 欄位，請依照以下格式處理：
+                  - 第一部分：將收據上的所有商品品項翻譯為【繁體中文】並逐行條列。
+                  - 第二部分：加入分隔線 '------------------'。
+                  - 第三部分：完整保留收據上的【原文內容、數量與單價】並逐行條列。
               3. 準確抓取最終付款的總金額(amount)與幣別(currency)。
               4. 辨識收據上的交易日期(date)，格式轉為 YYYY-MM-DD。` }
           ]
