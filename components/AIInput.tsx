@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Send, Loader2, Check, CreditCard, Store, Sparkles, User, Users, Tag } from 'lucide-react';
+import { Camera, Send, Loader2, Check, CreditCard, Store, Sparkles, User, Users, Tag, Coins } from 'lucide-react';
 import { processAIInput, processReceiptImage } from '../services/gemini';
 import { Transaction, Category, Member } from '../types';
 import { CATEGORIES } from '../constants';
@@ -329,19 +329,21 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
           onClick={() => fileInputRef.current?.click()}
           className="bg-white border-[3px] border-black rounded-[2rem] py-8 flex flex-col items-center justify-center gap-4 comic-shadow hover:-translate-y-1 transition-transform"
         >
-          <div className="p-5 bg-[#E64A4A] rounded-2xl text-white comic-border-sm">
+          <div className="p-5 bg-[#E64A4A] rounded-2xl text-white comic-border">
             <Camera size={32} strokeWidth={3} />
           </div>
           <span className="text-xs font-black uppercase tracking-widest">拍照辨識收據</span>
         </button>
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
         
-        <div className="bg-white border-[3px] border-black rounded-[2rem] p-5 flex flex-col items-center justify-center text-center comic-shadow group">
-          <p className="text-[11px] font-black text-slate-400 leading-relaxed uppercase tracking-tighter">
-            <span className="text-black/80 block mb-1">預設幣別: {defaultCurrency}</span>
-            自動計算當前台幣匯率<br/>
-            精準分帳不求人
-          </p>
+        {/* 優化後的預設幣別區塊 */}
+        <div className="bg-white border-[3px] border-black rounded-[2rem] py-8 flex flex-col items-center justify-center gap-4 comic-shadow">
+          <div className="p-5 bg-[#F6D32D] rounded-2xl text-black comic-border">
+            <Coins size={32} strokeWidth={3} />
+          </div>
+          <div className="flex flex-col items-center">            
+            <span className="text-xl font-black text-black tracking-wider">{defaultCurrency}</span>
+          </div>
         </div>
       </div>
     </div>

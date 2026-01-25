@@ -138,7 +138,6 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <span className="font-black text-lg text-black truncate leading-tight">{t.merchant}</span>
-                      {/* 分帳標籤同步移動至此 */}
                       {!t.isSplit ? (
                         <span className="shrink-0 bg-pink-100 text-pink-700 text-[11px] font-black px-2 py-0.5 rounded-lg border-2 border-pink-200 flex items-center gap-1">
                           <ShieldAlert size={10} strokeWidth={3} /> 個人
@@ -164,19 +163,17 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
                 </div>
               </div>
 
-              {/* 底部詳細資訊區塊 */}
+              {/* 底部詳細資訊區塊 - 已同步至與 Details 100% 一致 */}
               <div className="pt-5 border-t-2 border-slate-100 flex flex-col gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex items-center gap-2 text-base font-black text-black bg-slate-100 px-4 py-2 rounded-xl border-2 border-slate-200 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-base font-black text-black bg-slate-100 px-4 py-2 rounded-xl border-2 border-slate-200">
                     <div className="w-7 h-7 rounded-lg bg-[#F6D32D] comic-border flex items-center justify-center text-black text-[11px] font-black">
                       {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="whitespace-nowrap">{state.members.find(m => m.id === t.payerId)?.name} 付款</span>
+                    <span>{state.members.find(m => m.id === t.payerId)?.name} 付款</span>
                   </div>
-
-                  <div className="h-10 w-[2px] bg-slate-200 mx-1 self-center shrink-0"></div>
-                  
-                  <div className="flex flex-wrap gap-2 items-center flex-1 overflow-hidden pt-1">
+                  <div className="h-6 w-[2px] bg-slate-200 mx-1"></div>
+                  <div className="flex flex-wrap gap-2 items-center flex-1 overflow-hidden">
                     <span className="text-sm font-black text-black shrink-0">分給:</span>
                     <div className="flex flex-wrap gap-2">
                       {/* 若全員分帳，則顯示「全部的人」 */}
