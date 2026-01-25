@@ -21,6 +21,7 @@ interface DetailsProps {
 
 const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateState, onSync, isSyncing }) => {
   const [filterCategory, setFilterCategory] = useState<Category | '全部'>('全部');
+  const [filterMemberId, setFilterMemberId] = useState<string | '全部'>('全部');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<Transaction | null>(null);
@@ -75,6 +76,11 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
 
   const filteredTransactions = state.transactions
     .filter(t => filterCategory === '全部' || t.category === filterCategory)
+    .filter(t => {
+      if (filterMemberId === '全部') return true;
+      // 過濾規則：是付款人 或 在拆帳名單中
+      return t.payerId === filterMemberId || (t.isSplit && t.splitWith.includes(filterMemberId));
+    })
     .filter(t => 
       t.item.toLowerCase().includes(searchQuery.toLowerCase()) || 
       t.merchant.toLowerCase().includes(searchQuery.toLowerCase())
@@ -106,18 +112,47 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
           </button>
         </div>
 
-        <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
-          {['全部', ...CATEGORIES].map(c => (
+        <div className="space-y-3">
+          {/* 分類過濾 */}
+          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
+            {['全部', ...CATEGORIES].map(c => (
+              <button 
+                key={c}
+                onClick={() => setFilterCategory(c as any)}
+                className={`px-6 py-2.5 rounded-2xl text-sm font-black comic-border whitespace-nowrap transition-all ${
+                  filterCategory === c ? 'bg-black text-white' : 'bg-white text-black'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          {/* 成員過濾 */}
+          <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
             <button 
-              key={c}
-              onClick={() => setFilterCategory(c as any)}
-              className={`px-6 py-3 rounded-2xl text-base font-black comic-border whitespace-nowrap ${
-                filterCategory === c ? 'bg-black text-white' : 'bg-white text-black'
+              onClick={() => setFilterMemberId('全部')}
+              className={`px-5 py-2 rounded-xl text-sm font-black border-2 transition-all whitespace-nowrap ${
+                filterMemberId === '全部' ? 'bg-[#F6D32D] border-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'
               }`}
             >
-              {c}
+              所有人
             </button>
-          ))}
+            {state.members.map(m => (
+              <button 
+                key={m.id}
+                onClick={() => setFilterMemberId(m.id)}
+                className={`px-5 py-2 rounded-xl text-sm font-black border-2 transition-all whitespace-nowrap flex items-center gap-2 ${
+                  filterMemberId === m.id ? 'bg-[#F6D32D] border-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] ${filterMemberId === m.id ? 'bg-white' : 'bg-slate-200'}`}>
+                  {m.name.charAt(0).toUpperCase()}
+                </div>
+                {m.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -160,11 +195,9 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                       </div>
 
                       <div className="text-right shrink-0 ml-2">
-                        {/* 外幣在上 */}
                         <div className="text-[13px] font-bold text-slate-500 italic uppercase mb-1">
                           {t.originalAmount} {t.currency}
                         </div>
-                        {/* 台幣在下 */}
                         <div className="font-black text-xl text-black leading-none">
                           <span className="text-sm mr-0.5 font-bold">NT$</span>
                           {Math.round(t.ntdAmount).toLocaleString()}
