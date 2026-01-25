@@ -127,59 +127,56 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
   if (pendingRecord) {
     return (
-      <div className="bg-white border-[3px] border-black rounded-[2rem] p-8 comic-shadow animate-in zoom-in-95 duration-200">
-        <h3 className="font-black text-2xl mb-6 flex items-center gap-3 text-slate-900">
-          <Check className="text-green-500" size={28} strokeWidth={4} /> 確認消費明細
+      <div className="bg-white border-[3px] border-black rounded-[2rem] p-5 sm:p-8 comic-shadow animate-in zoom-in-95 duration-200">
+        <h3 className="font-black text-xl sm:text-2xl mb-6 flex items-center gap-3 text-slate-900">
+          <Check className="text-green-500" size={24} strokeWidth={4} /> 確認消費明細
         </h3>
         
-        <div className="space-y-5 max-h-[65vh] overflow-y-auto no-scrollbar pb-2">
-          {/* 日期與店家 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">日期</label>
+        <div className="space-y-4 sm:space-y-5 max-h-[65vh] overflow-y-auto no-scrollbar pb-2">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
+              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">日期</label>
               <input 
                 type="date"
-                className="w-full bg-transparent border-none focus:ring-0 text-base font-black text-slate-900 p-0"
+                className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0"
                 value={pendingRecord.date}
                 onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})}
               />
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">店家</label>
+            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
+              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">店家</label>
               <input 
-                className="w-full bg-transparent border-none focus:ring-0 text-base font-black text-slate-900 p-0"
+                className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0"
                 value={pendingRecord.merchant}
                 onChange={e => setPendingRecord({...pendingRecord, merchant: e.target.value})}
               />
             </div>
           </div>
 
-          {/* 項目內容 */}
-          <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-            <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">項目內容</label>
+          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
+            <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">項目內容</label>
             <textarea 
-              className="w-full bg-transparent border-none focus:ring-0 text-base font-bold min-h-[60px] leading-snug text-slate-900 p-0"
+              className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-bold min-h-[50px] sm:min-h-[60px] leading-snug text-slate-900 p-0"
               value={pendingRecord.item}
               onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})}
             />
           </div>
 
-          {/* 分類與付款人 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">分類</label>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
+              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">分類</label>
               <select 
-                className="w-full bg-transparent border-none focus:ring-0 text-base font-black appearance-none text-slate-900 p-0"
+                className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black appearance-none text-slate-900 p-0"
                 value={pendingRecord.category}
                 onChange={e => setPendingRecord({...pendingRecord, category: e.target.value as Category})}
               >
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">付款人</label>
+            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
+              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">付款人</label>
               <select 
-                className="w-full bg-transparent border-none focus:ring-0 text-base font-black appearance-none text-slate-900 p-0"
+                className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black appearance-none text-slate-900 p-0"
                 value={pendingRecord.payerId}
                 onChange={e => {
                   const newPayerId = e.target.value;
@@ -195,44 +192,42 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
           </div>
 
-          {/* 金額區域 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">外幣金額</label>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border-2 border-slate-200">
+              <label className="text-[9px] sm:text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">外幣金額</label>
               <div className="flex items-center">
                 <input 
-                  className="text-sm font-black mr-2 text-slate-400 w-12 bg-transparent border-none p-0 focus:ring-0 uppercase"
+                  className="text-[10px] sm:text-sm font-black mr-1 text-slate-400 w-10 sm:w-12 bg-transparent border-none p-0 focus:ring-0 uppercase"
                   value={pendingRecord.currency}
                   onChange={e => handleCurrencyChange(e.target.value.toUpperCase())}
                 />
                 <input 
                   type="number"
                   placeholder="0"
-                  className="w-full bg-transparent border-none focus:ring-0 text-xl font-black text-slate-900 p-0"
+                  className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0"
                   value={pendingRecord.originalAmount || ''}
                   onChange={e => handleOriginalAmountChange(e.target.value ? Number(e.target.value) : 0)}
                 />
               </div>
             </div>
-            <div className="bg-[#FFFDF0] p-4 rounded-xl border-[3px] border-black">
-              <label className="text-[10px] font-black text-[#E64A4A] mb-1 block uppercase tracking-tighter">台幣金額</label>
+            <div className="bg-[#FFFDF0] p-3 sm:p-4 rounded-xl border-[3px] border-black">
+              <label className="text-[9px] sm:text-[10px] font-black text-[#E64A4A] mb-1 block uppercase tracking-tighter">台幣金額</label>
               <input 
                 ref={ntdInputRef}
                 type="number"
                 placeholder="0"
-                className="w-full bg-transparent border-none focus:ring-0 text-xl font-black placeholder:text-slate-300 text-slate-900 p-0"
+                className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black placeholder:text-slate-300 text-slate-900 p-0"
                 value={pendingRecord.ntdAmount || ''}
                 onChange={e => setPendingRecord({...pendingRecord, ntdAmount: e.target.value ? Number(e.target.value) : 0})}
               />
             </div>
           </div>
 
-          {/* 是否拆帳與成員 */}
-          <div className="bg-slate-50 p-5 rounded-2xl border-2 border-slate-200">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-slate-200">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
               <div className="flex flex-col">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">是否拆帳</label>
-                <span className={`text-[10px] font-black ${pendingRecord.isSplit ? 'text-blue-500' : 'text-pink-500'}`}>
+                <label className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">是否拆帳</label>
+                <span className={`text-[9px] sm:text-[10px] font-black ${pendingRecord.isSplit ? 'text-blue-500' : 'text-pink-500'}`}>
                   (類型: {pendingRecord.isSplit ? '公帳' : '私帳'})
                 </span>
               </div>
@@ -256,7 +251,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                   }
                   setPendingRecord({...pendingRecord, ...updates});
                 }}
-                className="w-7 h-7 border-[3px] border-black rounded-lg"
+                className="w-6 h-6 sm:w-7 sm:h-7 border-[3px] border-black rounded-lg"
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -265,7 +260,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                   key={m.id}
                   disabled={!pendingRecord.isSplit}
                   onClick={() => toggleSplitMember(m.id)}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black border-[3px] border-black transition-all ${
+                  className={`px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black border-[3px] border-black transition-all ${
                     !pendingRecord.isSplit ? 'opacity-30' : ''
                   } ${
                     pendingRecord.splitWith?.includes(m.id) 
@@ -279,16 +274,16 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-3 sm:gap-4 pt-3 sm:pt-4">
             <button 
               onClick={() => setPendingRecord(null)}
-              className="flex-1 py-5 bg-white border-[3px] border-slate-200 rounded-2xl font-black text-slate-400 text-lg active:scale-95 transition-all"
+              className="flex-1 py-4 sm:py-5 bg-white border-[3px] border-slate-200 rounded-2xl font-black text-slate-400 text-base sm:text-lg active:scale-95 transition-all"
             >
               取消
             </button>
             <button 
               onClick={confirmRecord}
-              className="flex-[2] py-5 bg-black text-white rounded-2xl font-black comic-shadow text-lg active:translate-y-1 transition-all"
+              className="flex-[2] py-4 sm:py-5 bg-black text-white rounded-2xl font-black comic-shadow text-base sm:text-lg active:translate-y-1 transition-all"
             >
               確認送出
             </button>
@@ -300,16 +295,16 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#F6D32D] border-[3px] border-black rounded-[2rem] p-6 comic-shadow">
+      <div className="bg-[#F6D32D] border-[3px] border-black rounded-[2rem] p-4 sm:p-6 comic-shadow">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles size={18} className="text-black" />
-          <span className="font-black text-[13px] uppercase tracking-[0.15em] text-black/80">快速文字記帳 ({defaultCurrency})</span>
+          <Sparkles size={16} className="text-black" />
+          <span className="font-black text-[12px] sm:text-[13px] uppercase tracking-[0.15em] text-black/80">快速文字記帳 ({defaultCurrency})</span>
         </div>
         <div className="relative">
           <input 
             type="text"
-            placeholder={`例如：咖啡 5 (自動辨識)`}
-            className="w-full bg-white border-[3px] border-black rounded-2xl py-5 pl-6 pr-16 focus:outline-none text-black font-black text-lg placeholder:text-slate-300"
+            placeholder={`例如：咖啡 5`}
+            className="w-full bg-white border-[3px] border-black rounded-2xl py-4 sm:py-5 pl-5 sm:pl-6 pr-14 sm:pr-16 focus:outline-none text-black font-black text-base sm:text-lg placeholder:text-slate-300"
             value={inputText}
             onChange={e => setInputText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
@@ -317,35 +312,34 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
           <button 
             onClick={handleTextSubmit}
             disabled={isLoading || !inputText}
-            className="absolute right-2.5 top-2.5 bottom-2.5 px-4 bg-black text-white rounded-xl disabled:opacity-50 active:scale-95 transition-all"
+            className="absolute right-2 top-2 bottom-2 px-3 bg-black text-white rounded-xl disabled:opacity-50 active:scale-95 transition-all"
           >
-            {isLoading ? <Loader2 className="animate-spin" size={26} /> : <Send size={26} strokeWidth={3} />}
+            {isLoading ? <Loader2 className="animate-spin" size={24} /> : <Send size={24} strokeWidth={3} />}
           </button>
         </div>
       </div>
 
-      {/* 整合後的橫向滿版專業大卡片 */}
       <div className="w-full">
         <button 
           onClick={() => fileInputRef.current?.click()}
-          className="w-full bg-white border-[3px] border-black rounded-[2.5rem] py-6 px-8 flex items-center justify-between comic-shadow hover:-translate-y-1 transition-all group overflow-hidden"
+          className="w-full bg-white border-[3px] border-black rounded-[2.5rem] py-4 sm:py-6 px-4 sm:px-8 flex items-center justify-between comic-shadow hover:-translate-y-1 transition-all group overflow-hidden"
         >
-          {/* 左側：拍照辨識區 */}
-          <div className="flex items-center gap-6">
-            <div className="p-4 bg-[#E64A4A] rounded-2xl text-white comic-border shadow-sm group-active:scale-95 transition-transform shrink-0">
-              <Camera size={32} strokeWidth={3} />
+          <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+            <div className="p-3 sm:p-4 bg-[#E64A4A] rounded-2xl text-white comic-border shadow-sm group-active:scale-95 transition-transform shrink-0">
+              {/* Fix: Lucide icons do not support responsive props like sm:size. Using Tailwind classes for responsiveness instead. */}
+              <Camera className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={3} />
             </div>
-            <div className="text-left">
-              <span className="block text-xl font-black text-black leading-tight mb-1">上傳收據讓AI幫你</span>
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">自動辨識品項與金額</span>
+            <div className="text-left truncate">
+              <span className="block text-lg sm:text-xl font-black text-black leading-tight mb-0.5 truncate">上傳收據讓AI幫你</span>
+              <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest block truncate">自動辨識品項與金額</span>
             </div>
           </div>
 
-          {/* 右側：幣別資訊區（帶垂直線） */}
-          <div className="flex items-center pl-8 border-l-2 border-slate-100 h-14">
-            <div className="flex flex-col items-center gap-1.5">
-              <Coins size={24} className="text-[#F6D32D]" strokeWidth={3.5} />
-              <span className="text-[13px] font-black text-black tracking-wider uppercase leading-none">{defaultCurrency}</span>
+          <div className="flex items-center pl-4 sm:pl-8 border-l-2 border-slate-100 h-10 sm:h-14 shrink-0">
+            <div className="flex flex-col items-center gap-1">
+              {/* Fix: Lucide icons do not support responsive props like sm:size. Using Tailwind classes for responsiveness instead. */}
+              <Coins className="text-[#F6D32D] w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3.5} />
+              <span className="text-[11px] sm:text-[13px] font-black text-black tracking-wider uppercase leading-none">{defaultCurrency}</span>
             </div>
           </div>
         </button>
