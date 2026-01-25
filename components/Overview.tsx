@@ -8,9 +8,10 @@ import { TrendingUp, Wallet, ShoppingBag, Users, ShieldAlert } from 'lucide-reac
 interface OverviewProps {
   state: AppState;
   onAddTransaction: (t: Partial<Transaction>) => void;
+  setIsAIProcessing: (loading: boolean) => void; // 新增：傳遞控制函式
 }
 
-const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
+const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIProcessing }) => {
   const totalExpense = state.transactions.reduce((acc, t) => acc + t.ntdAmount, 0);
 
   const calculateStats = () => {
@@ -79,7 +80,8 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction }) => {
           onAddTransaction={onAddTransaction} 
           members={state.members} 
           exchangeRate={state.exchangeRate} 
-          defaultCurrency={state.defaultCurrency} 
+          defaultCurrency={state.defaultCurrency}
+          setIsAIProcessing={setIsAIProcessing} // 傳遞給 AIInput
         />
       </section>
 
