@@ -10,10 +10,11 @@ interface AIInputProps {
   members: Member[];
   exchangeRate: number;
   defaultCurrency: string;
-  setIsAIProcessing: (loading: boolean) => void; // 新增：傳遞控制函式
+  setIsAIProcessing: (loading: boolean) => void;
+  currentUserId: string; // 新增：接收目前使用者 ID
 }
 
-const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRate, defaultCurrency, setIsAIProcessing }) => {
+const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRate, defaultCurrency, setIsAIProcessing, currentUserId }) => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' }) | null>(null);
@@ -72,7 +73,8 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   const preparePendingRecord = (data: any, source: 'text' | 'image') => {
     const currency = data.currency?.toUpperCase() || defaultCurrency || 'CHF';
     const amount = Number(data.amount) || 0;
-    const payerId = members[0]?.id || '';
+    // 修改：預設付款人改為目前使用者
+    const payerId = currentUserId || members[0]?.id || ''; 
     const sanitizedDate = (data.date || new Date().toISOString()).split('T')[0];
     const ntdAmount = currency === 'TWD' ? amount : Math.round(amount * exchangeRate);
 

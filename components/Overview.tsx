@@ -81,7 +81,8 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
           members={state.members} 
           exchangeRate={state.exchangeRate} 
           defaultCurrency={state.defaultCurrency}
-          setIsAIProcessing={setIsAIProcessing} // 傳遞給 AIInput
+          setIsAIProcessing={setIsAIProcessing} 
+          currentUserId={state.currentUser} // 新增：傳遞目前使用者 ID
         />
       </section>
 
