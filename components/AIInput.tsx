@@ -115,7 +115,26 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     const newSplit = currentSplit.includes(memberId)
       ? currentSplit.filter(id => id !== memberId)
       : [...currentSplit, memberId];
-    setPendingRecord({ ...pendingRecord, splitWith: newSplit });
+    
+    if (newSplit.length === 0) return;
+
+    // 邏輯優化：若為多人則自動設為公帳
+    const isSplit = newSplit.length > 1;
+    let newCategory = pendingRecord.category;
+    
+    if (isSplit && newCategory === '個人消費') {
+      newCategory = '雜項';
+    } else if (!isSplit) {
+      newCategory = '個人消費';
+    }
+
+    setPendingRecord({ 
+      ...pendingRecord, 
+      splitWith: newSplit,
+      isSplit: isSplit,
+      type: isSplit ? '公帳' : '私帳',
+      category: newCategory as Category
+    });
   };
 
   const confirmRecord = () => {
@@ -206,6 +225,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                 onChange={e => {
                   const newPayerId = e.target.value;
                   const updates: Partial<Transaction> = { payerId: newPayerId };
+                  // 若目前為單人模式，則同步更新分帳人員為付款人
                   if (!pendingRecord.isSplit) {
                     updates.splitWith = [newPayerId];
                   }
@@ -217,7 +237,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
           </div>
 
-          {/* 參與分帳人員：優化排版縮小區塊並單行橫向分佈 */}
+          {/* 參與分帳人員：解除點擊限制，多人自動開啟公帳 */}
           <div className="bg-slate-50 p-3 rounded-2xl border-[3px] border-black">
             <div className="flex justify-between items-center mb-2">
               <div className="flex flex-col">
@@ -253,11 +273,8 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               {members.map(m => (
                 <button
                   key={m.id}
-                  disabled={!pendingRecord.isSplit}
                   onClick={() => toggleSplitMember(m.id)}
                   className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg text-[11px] font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
-                    !pendingRecord.isSplit ? 'opacity-30' : ''
-                  } ${
                     pendingRecord.splitWith?.includes(m.id) 
                       ? 'bg-[#F6D32D] text-black border-black shadow-sm' 
                       : 'bg-white text-slate-300 border-slate-100'

@@ -66,12 +66,32 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
   };
 
   const toggleSplitMember = (memberId: string) => {
-    if (!editingItem || !editingItem.isSplit) return;
+    if (!editingItem) return;
     const currentSplit = editingItem.splitWith || [];
     const newSplit = currentSplit.includes(memberId)
       ? currentSplit.filter(id => id !== memberId)
       : [...currentSplit, memberId];
-    setEditingItem({ ...editingItem, splitWith: newSplit });
+    
+    // 確保至少有一人參與
+    if (newSplit.length === 0) return;
+
+    // 邏輯優化：若為多人則設為公帳，若為單人則設為私帳
+    const isSplit = newSplit.length > 1;
+    let newCategory = editingItem.category;
+    
+    if (isSplit && newCategory === '個人消費') {
+      newCategory = '雜項';
+    } else if (!isSplit) {
+      newCategory = '個人消費';
+    }
+
+    setEditingItem({ 
+      ...editingItem, 
+      splitWith: newSplit,
+      isSplit: isSplit,
+      type: isSplit ? '公帳' : '私帳',
+      category: newCategory
+    });
   };
 
   const filteredTransactions = state.transactions
@@ -320,18 +340,15 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              {/* 參與分帳人員：優化排版縮小區塊並單行橫向分佈 */}
+              {/* 優化後的參與分帳人員：解除限制，多人自動轉公帳 */}
               <div className="bg-slate-50 p-3 rounded-2xl border-[3px] border-black">
                 <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest leading-none">參與分帳人員</label>
                 <div className="flex flex-nowrap gap-1 overflow-x-auto no-scrollbar pt-1">
                   {state.members.map(m => (
                     <button
                       key={m.id}
-                      disabled={!editingItem.isSplit}
                       onClick={() => toggleSplitMember(m.id)}
                       className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg text-[11px] font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
-                        !editingItem.isSplit ? 'opacity-30' : ''
-                      } ${
                         editingItem.splitWith?.includes(m.id) 
                           ? 'bg-[#F6D32D] text-black border-black shadow-sm' 
                           : 'bg-white text-slate-300 border-slate-100'
