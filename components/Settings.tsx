@@ -204,8 +204,8 @@ function doPost(e) {
                 type="number"
                 step="0.01"
                 className="flex-1 bg-white border-2 border-black rounded-xl px-4 py-3 font-black text-lg min-w-0"
-                value={state.exchangeRate}
-                onChange={e => updateState({ exchangeRate: Number(e.target.value) })}
+                value={state.exchangeRate === 0 ? '' : state.exchangeRate}
+                onChange={e => updateState({ exchangeRate: e.target.value === '' ? 0 : Number(e.target.value) })}
               />
               <button 
                 onClick={handleSyncRate}
