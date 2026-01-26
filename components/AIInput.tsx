@@ -98,7 +98,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
     setPendingRecord({
       source,
-      merchant: data.merchant || '未知店家',
+      merchant: data.merchant || '未指定店家',
       item: data.item || '未命名項目',
       originalAmount: amount,
       currency: currency,
@@ -168,7 +168,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
         <div className="flex-1 relative">
           <input 
             type="text"
-            placeholder="輸入消費內容或語音..."
+            placeholder="輸入消費內容 如 Coop 咖啡3 早餐2"
             className="w-full bg-white comic-border rounded-2xl py-4 pl-5 pr-14 text-lg font-bold shadow-sm focus:outline-none"
             value={inputText}
             onChange={e => setInputText(e.target.value)}

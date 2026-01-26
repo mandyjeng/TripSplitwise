@@ -9,8 +9,8 @@ const ai = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 const expenseSchema = {
   type: SchemaType.OBJECT,
   properties: {
-    merchant: { type: SchemaType.STRING, description: '消費店家名稱（如：Starbucks, Migros, Coop）' },
-    item: { type: SchemaType.STRING, description: '項目內容清單。' },
+    merchant: { type: SchemaType.STRING, description: '消費店家名稱（如：Starbucks, Migros, Coop）。若無明確店家則回傳「未指定店家」' },
+    item: { type: SchemaType.STRING, description: '品項清單，多個品項請用換行分隔。' },
     amount: { type: SchemaType.NUMBER, description: '總金額' },
     currency: { type: SchemaType.STRING, description: '幣別，如 CHF, EUR, JPY, TWD' },
     category: { type: SchemaType.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險' },
@@ -68,16 +68,21 @@ export default async function handler(req: any, res: any) {
               text: `這是一筆文字記帳資訊： "${text}"。
               當前預設貨幣是 ${defaultCurrency}，今天日期是 ${today}。
               
-              請依照以下規則處理：
-              1. 項目內容 (item)：
-                 - 請直接提取使用者輸入的品項名稱（原文顯示，不需翻譯）。
-                 - 多個品項請使用換行分隔。
-                 - 不要添加 "------------------" 分隔線。
-              2. 店家 (merchant)：提取最像店家的名稱（如 coop, starbucks），若無則與品項名稱相同。
+              請依照以下嚴格規則處理：
+              1. 店家 (merchant)：
+                - 提取最像店家的名稱（通常是輸入的第一個詞，如 coop, starbucks）。
+                - 如果輸入中沒有提到任何像店名的詞，請務必回傳「未指定店家」。
+              2. 項目內容 (item)：
+                - 請列出所有品項與其後面的數字。
+                - 多個品項請務必使用換行分隔。
+                - 例如輸入 "Coop 咖啡3 早餐2"，item 應為:
+                  咖啡3
+                  早餐2
               3. 金額 (amount)：
-                 - 如果輸入中包含多個數字（如：咖啡3 三明治3），請自動將所有數字相加（3+3=6）。
-                 - 輸出最終的加總數值。
-              4. 幣別 (currency)：優先使用 ${defaultCurrency}。`
+                - 自動將輸入中出現的所有數字相加作為最終總金額。
+                - 例如：3 + 2 = 5。
+              4. 幣別 (currency)：優先使用 ${defaultCurrency}。
+              5. 分類 (category)：根據內容判斷，用餐、交通等。`,
             }]
           }
         ]
