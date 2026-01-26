@@ -11,7 +11,7 @@ interface AIInputProps {
   exchangeRate: number;
   defaultCurrency: string;
   setIsAIProcessing: (loading: boolean) => void;
-  currentUserId: string; // 新增：接收目前使用者 ID
+  currentUserId: string;
 }
 
 const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRate, defaultCurrency, setIsAIProcessing, currentUserId }) => {
@@ -20,17 +20,36 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' }) | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ntdInputRef = useRef<HTMLInputElement>(null);
+  
+  // 用於追蹤當前這筆 pendingRecord 是否已經執行過首次聚焦
+  const hasFocusedInitialRef = useRef(false);
 
   // 當內部 isLoading 改變時，回報給全局
   useEffect(() => {
     setIsAIProcessing(isLoading);
   }, [isLoading, setIsAIProcessing]);
 
+  // 輔助函式：主動收起鍵盤，改善點擊選取人員時的 UX
+  const dismissKeyboard = () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
+  // 優化聚焦邏輯：僅在「首次」開啟且來源為圖片時觸發
   useEffect(() => {
-    if (pendingRecord && pendingRecord.source === 'image') {
+    if (!pendingRecord) {
+      // 關閉視窗或清空時，重置聚焦標記
+      hasFocusedInitialRef.current = false;
+      return;
+    }
+
+    // 只有在還沒聚焦過，且這筆紀錄是從圖片產生的時候才自動彈出鍵盤
+    if (pendingRecord.source === 'image' && !hasFocusedInitialRef.current) {
       const timer = setTimeout(() => {
         ntdInputRef.current?.focus();
-      }, 300);
+        hasFocusedInitialRef.current = true;
+      }, 400); // 稍微延遲等待 Modal 動畫
       return () => clearTimeout(timer);
     }
   }, [pendingRecord]);
@@ -62,7 +81,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
         preparePendingRecord(result, 'image');
       } catch (error) {
         console.error(error);
-        alert('AI圖片處理失敗:'+error);
+        alert('AI圖片處理失敗');
       } finally {
         setIsLoading(false);
       }
@@ -73,7 +92,6 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   const preparePendingRecord = (data: any, source: 'text' | 'image') => {
     const currency = data.currency?.toUpperCase() || defaultCurrency || 'CHF';
     const amount = Number(data.amount) || 0;
-    // 修改：預設付款人改為目前使用者
     const payerId = currentUserId || members[0]?.id || ''; 
     const sanitizedDate = (data.date || new Date().toISOString()).split('T')[0];
     const ntdAmount = currency === 'TWD' ? amount : Math.round(amount * exchangeRate);
@@ -106,19 +124,12 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     });
   };
 
-  const handleCurrencyChange = (cur: string) => {
-    if (!pendingRecord) return;
-    const amount = pendingRecord.originalAmount || 0;
-    const newNtd = cur === 'TWD' ? amount : Math.round(amount * exchangeRate);
-    setPendingRecord({
-      ...pendingRecord,
-      currency: cur,
-      ntdAmount: newNtd
-    });
-  };
-
   const toggleSplitMember = (memberId: string) => {
     if (!pendingRecord) return;
+    
+    // 點擊人員時主動收回鍵盤，方便看清楚名單
+    dismissKeyboard();
+
     const currentSplit = pendingRecord.splitWith || [];
     const newSplit = currentSplit.includes(memberId)
       ? currentSplit.filter(id => id !== memberId)
@@ -153,7 +164,35 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
   return (
     <div className="space-y-6">
-      {/* 確認明細全螢幕彈窗 */}
+      <div className="flex gap-3 items-center">
+        <div className="flex-1 relative">
+          <input 
+            type="text"
+            placeholder="輸入消費內容或語音..."
+            className="w-full bg-white comic-border rounded-2xl py-4 pl-5 pr-14 text-lg font-bold shadow-sm focus:outline-none"
+            value={inputText}
+            onChange={e => setInputText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
+          />
+          <button 
+            onClick={handleTextSubmit}
+            disabled={isLoading || !inputText.trim()}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 text-black hover:bg-slate-50 rounded-xl transition-all disabled:opacity-30"
+          >
+            <Send size={24} strokeWidth={3} />
+          </button>
+        </div>
+        
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isLoading}
+          className="bg-black text-white w-14 h-14 rounded-2xl comic-shadow-sm flex items-center justify-center transition-all active:translate-y-1 disabled:opacity-50 shrink-0"
+        >
+          <Camera size={28} />
+        </button>
+        <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageUpload} />
+      </div>
+
       {pendingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white border-[3px] border-black rounded-[2.5rem] sm:rounded-[3rem] w-full max-w-sm p-6 sm:p-8 comic-shadow relative animate-in zoom-in-95 duration-200">
@@ -161,10 +200,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               <h3 className="font-black text-xl sm:text-2xl flex items-center gap-3 text-slate-900 italic">
                 <Check className="text-green-500" size={24} strokeWidth={4} /> 確認消費明細
               </h3>
-              <button 
-                onClick={() => setPendingRecord(null)} 
-                className="p-2 bg-slate-50 rounded-full text-slate-400"
-              >
+              <button onClick={() => setPendingRecord(null)} className="p-2 bg-slate-50 rounded-full text-slate-400">
                 <X size={20} strokeWidth={3} />
               </button>
             </div>
@@ -173,20 +209,11 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">日期</label>
-                  <input 
-                    type="date"
-                    className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0"
-                    value={pendingRecord.date}
-                    onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})}
-                  />
+                  <input type="date" className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0" value={pendingRecord.date} onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})} />
                 </div>
                 <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">店家</label>
-                  <input 
-                    className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0"
-                    value={pendingRecord.merchant}
-                    onChange={e => setPendingRecord({...pendingRecord, merchant: e.target.value})}
-                  />
+                  <input className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0" value={pendingRecord.merchant} onChange={e => setPendingRecord({...pendingRecord, merchant: e.target.value})} />
                 </div>
               </div>
 
@@ -196,6 +223,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                   <input 
                     ref={ntdInputRef}
                     type="number"
+                    inputMode="numeric"
                     placeholder="0"
                     className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0"
                     value={pendingRecord.ntdAmount || ''}
@@ -203,49 +231,21 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                   />
                 </div>
                 <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
-                  <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">外幣金額</label>
-                  <div className="flex items-center">
-                    <input 
-                      className="text-[10px] sm:text-sm font-black mr-1 text-slate-400 w-10 bg-transparent border-none p-0 focus:ring-0 uppercase"
-                      value={pendingRecord.currency}
-                      onChange={e => handleCurrencyChange(e.target.value.toUpperCase())}
-                    />
-                    <input 
-                      type="number"
-                      placeholder="0"
-                      className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0"
-                      value={pendingRecord.originalAmount || ''}
-                      onChange={e => handleOriginalAmountChange(e.target.value ? Number(e.target.value) : 0)}
-                    />
-                  </div>
+                  <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">外幣 ({pendingRecord.currency})</label>
+                  <input type="number" inputMode="decimal" placeholder="0" className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0" value={pendingRecord.originalAmount || ''} onChange={e => handleOriginalAmountChange(e.target.value ? Number(e.target.value) : 0)} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">分類</label>
-                  <select 
-                    className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black appearance-none text-slate-900 p-0"
-                    value={pendingRecord.category}
-                    onChange={e => setPendingRecord({...pendingRecord, category: e.target.value as Category})}
-                  >
+                  <select className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0 appearance-none" value={pendingRecord.category} onChange={e => setPendingRecord({...pendingRecord, category: e.target.value as Category})}>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
                   <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">付款人</label>
-                  <select 
-                    className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black appearance-none text-slate-900 p-0"
-                    value={pendingRecord.payerId}
-                    onChange={e => {
-                      const newPayerId = e.target.value;
-                      const updates: Partial<Transaction> = { payerId: newPayerId };
-                      if (!pendingRecord.isSplit) {
-                        updates.splitWith = [newPayerId];
-                      }
-                      setPendingRecord({...pendingRecord, ...updates});
-                    }}
-                  >
+                  <select className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0 appearance-none" value={pendingRecord.payerId} onChange={e => setPendingRecord({...pendingRecord, payerId: e.target.value})}>
                     {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
@@ -253,41 +253,30 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
               <div className="bg-slate-50 p-3 rounded-2xl border-[3px] border-black">
                 <div className="flex justify-between items-center mb-2">
-                  <div className="flex flex-col">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">參與分帳人員</label>
-                    <span className={`text-[8px] font-black mt-1 ${pendingRecord.isSplit ? 'text-blue-500' : 'text-pink-500'}`}>
-                      (類型: {pendingRecord.isSplit ? '公帳' : '私帳'})
-                    </span>
-                  </div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">參與分帳人員 <span className="text-[8px] text-blue-500">(類型: {pendingRecord.type})</span></label>
                   <input 
-                    type="checkbox"
-                    checked={pendingRecord.isSplit}
+                    type="checkbox" 
+                    className="w-5 h-5 accent-blue-500" 
+                    checked={pendingRecord.isSplit} 
                     onChange={e => {
+                      dismissKeyboard(); // 切換分帳類型時收起鍵盤
                       const isSplit = e.target.checked;
-                      const updates: Partial<Transaction> = { 
-                        isSplit,
-                        type: isSplit ? '公帳' : '私帳'
-                      };
-                      if (!isSplit) {
-                        updates.category = '個人消費';
-                        updates.splitWith = [pendingRecord.payerId || ''];
-                      } else {
-                        if (pendingRecord.category === '個人消費') {
-                          updates.category = '雜項';
-                        }
-                        updates.splitWith = members.map(m => m.id);
-                      }
-                      setPendingRecord({...pendingRecord, ...updates});
-                    }}
-                    className="w-5 h-5 border-[2px] border-black rounded-lg"
+                      setPendingRecord({
+                        ...pendingRecord, 
+                        isSplit, 
+                        type: isSplit ? '公帳' : '私帳',
+                        splitWith: isSplit ? members.map(m => m.id) : [pendingRecord.payerId || currentUserId],
+                        category: isSplit ? (pendingRecord.category === '個人消費' ? '雜項' : pendingRecord.category) : '個人消費'
+                      });
+                    }} 
                   />
                 </div>
-                <div className="flex flex-nowrap gap-1 overflow-x-auto no-scrollbar pt-1">
+                <div className="flex flex-nowrap gap-1.5 overflow-x-auto no-scrollbar pt-1">
                   {members.map(m => (
                     <button
                       key={m.id}
                       onClick={() => toggleSplitMember(m.id)}
-                      className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg text-[11px] font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
+                      className={`flex-1 min-w-0 py-2 px-1 rounded-xl text-[11px] font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
                         pendingRecord.splitWith?.includes(m.id) 
                           ? 'bg-[#F6D32D] text-black border-black shadow-sm' 
                           : 'bg-white text-slate-300 border-slate-100'
@@ -302,8 +291,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               <div className="bg-slate-50 p-3.5 rounded-2xl border-[3px] border-black">
                 <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">項目內容 (收據清單)</label>
                 <textarea 
-                  className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-bold min-h-[140px] leading-relaxed text-slate-900 p-0 resize-none whitespace-pre-wrap"
-                  placeholder="收據詳細品項..."
+                  className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm sm:text-base leading-relaxed p-0 text-slate-950 resize-none whitespace-pre-wrap min-h-[100px]"
                   value={pendingRecord.item}
                   onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})}
                 />
@@ -311,72 +299,16 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
 
             <div className="flex gap-4 mt-6">
-              <button 
-                onClick={() => setPendingRecord(null)}
-                className="flex-1 py-4 bg-white border-[3px] border-slate-200 rounded-2xl font-black text-slate-400 text-base active:scale-95 transition-all"
-              >
+              <button onClick={() => setPendingRecord(null)} className="flex-1 py-4 bg-white border-[3px] border-black rounded-2xl font-black text-base active:scale-95 transition-all">
                 取消
               </button>
-              <button 
-                onClick={confirmRecord}
-                className="flex-[2] py-4 bg-black text-white rounded-2xl font-black comic-shadow-sm text-base active:translate-y-1 transition-all"
-              >
+              <button onClick={confirmRecord} className="flex-1 py-4 bg-black text-white rounded-2xl font-black text-base comic-shadow-sm active:translate-y-1 transition-all">
                 確認送出
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* 快速輸入與上傳按鈕 */}
-      <div className="bg-[#F6D32D] border-[3px] border-black rounded-[2rem] p-4 sm:p-6 comic-shadow">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles size={16} className="text-black" />
-          <span className="font-black text-[12px] sm:text-[13px] uppercase tracking-[0.15em] text-black/80">快速文字記帳 ({defaultCurrency})</span>
-        </div>
-        <div className="relative">
-          <input 
-            type="text"
-            placeholder={`例如：咖啡 5`}
-            className="w-full bg-white border-[3px] border-black rounded-2xl py-4 sm:py-5 pl-5 sm:pl-6 pr-14 sm:pr-16 focus:outline-none text-black font-black text-base sm:text-lg placeholder:text-slate-300"
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
-          />
-          <button 
-            onClick={handleTextSubmit}
-            disabled={isLoading || !inputText}
-            className="absolute right-2 top-2 bottom-2 px-3 bg-black text-white rounded-xl disabled:opacity-50 active:scale-95 transition-all"
-          >
-            {isLoading ? <Loader2 className="animate-spin" size={24} /> : <Send size={24} strokeWidth={3} />}
-          </button>
-        </div>
-      </div>
-
-      <div className="w-full">
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full bg-white border-[3px] border-black rounded-[2.5rem] py-4 sm:py-6 px-4 sm:px-8 flex items-center justify-between comic-shadow hover:-translate-y-1 transition-all group overflow-hidden"
-        >
-          <div className="flex items-center gap-4 sm:gap-6 min-w-0">
-            <div className="p-3 sm:p-4 bg-[#E64A4A] rounded-2xl text-white comic-border shadow-sm group-active:scale-95 transition-transform shrink-0">
-              <Camera className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={3} />
-            </div>
-            <div className="text-left truncate">
-              <span className="block text-lg sm:text-xl font-black text-black leading-tight mb-0.5 truncate">上傳收據讓AI幫你</span>
-              <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest block truncate">自動辨識品項與金額</span>
-            </div>
-          </div>
-
-          <div className="flex items-center pl-4 sm:pl-8 border-l-2 border-slate-100 h-10 sm:h-14 shrink-0">
-            <div className="flex flex-col items-center gap-1">
-              <Coins className="text-[#F6D32D] w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3.5} />
-              <span className="text-[11px] sm:text-[13px] font-black text-black tracking-wider uppercase leading-none">{defaultCurrency}</span>
-            </div>
-          </div>
-        </button>
-        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-      </div>
     </div>
   );
 };

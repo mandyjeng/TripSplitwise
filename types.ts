@@ -30,4 +30,5 @@ export interface AppState {
   defaultCurrency: string; // 新增：預設外幣幣別
   currentUser: string;
   sheetUrl?: string;
+  theme?: 'comic' | 'fresh'; // 新增：主題設定
 }

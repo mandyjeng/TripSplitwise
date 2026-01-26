@@ -1,7 +1,18 @@
 // src/services/gemini.ts
 
-// 建立一個共用的請求處理函式，避免重複寫 fetch 邏輯
-const sendRequest = async (payload: any) => {
+// 定義回傳的資料介面 (Optional, 但對 TypeScript 很有幫助)
+export interface ExpenseData {
+  merchant: string;
+  item: string;
+  amount: number;
+  currency: string;
+  category: string;
+  date: string;
+}
+
+// 共用的請求發送器
+const sendRequest = async (payload: any): Promise<ExpenseData> => {
+  // 呼叫 Vercel 後端 API
   const response = await fetch('/api/analyze', {
     method: 'POST',
     headers: {
@@ -10,16 +21,15 @@ const sendRequest = async (payload: any) => {
     body: JSON.stringify(payload),
   });
 
-  // 嘗試解析 JSON 回傳值 (不論成功或失敗，後端都應該回傳 JSON)
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    // 這裡優先讀取後端回傳的錯誤細節 (error 或 details 或 message)
-    const errorMessage = data?.error || data?.message || data?.details || `API Error: ${response.statusText}`;
+    // 優先顯示後端回傳的具體錯誤訊息
+    const errorMessage = data?.message || data?.error || `請求失敗 (${response.status})`;
     throw new Error(errorMessage);
   }
 
-  return data;
+  return data as ExpenseData;
 };
 
 // 處理文字輸入
@@ -28,28 +38,28 @@ export const processAIInput = async (text: string, defaultCurrency: string = 'CH
     return await sendRequest({
       type: 'text',
       text: text,
-      defaultCurrency: defaultCurrency,
+      defaultCurrency: defaultCurrency, // 將預設貨幣傳給後端
     });
   } catch (error) {
-    console.error("Error processing text:", error);
-    // ⚠️ 關鍵修改：將錯誤往上拋，讓 UI (AllInput.tsx) 可以 catch 到並跳 alert
-    throw error;
+    console.error("Text analysis failed:", error);
+    throw error; // 往上拋給 UI 層處理
   }
 };
 
 // 處理圖片輸入
 export const processReceiptImage = async (base64Image: string) => {
   try {
-    // 處理 base64 前綴
-    const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
+    // 前端先做簡單的清理，確保傳輸的資料乾淨
+    const cleanBase64 = base64Image.includes('base64,') 
+      ? base64Image.split('base64,')[1] 
+      : base64Image;
 
     return await sendRequest({
       type: 'image',
       base64Image: cleanBase64,
     });
   } catch (error) {
-    console.error("Error processing image:", error);
-    // ⚠️ 關鍵修改：將錯誤往上拋
-    throw error;
+    console.error("Image analysis failed:", error);
+    throw error; // 往上拋給 UI 層處理
   }
 };

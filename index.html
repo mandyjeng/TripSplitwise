@@ -8,27 +8,99 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* Comic 主題變數 (預設) */
+            --theme-bg: #FDFCF8;
+            --theme-black: #000000;
+            --theme-border-width: 3px;
+            --theme-shadow-offset: 6px;
+            --theme-shadow-sm-offset: 3px;
+            --theme-radius-card: 2.5rem;
+            --theme-accent: #F6D32D;
+            --theme-danger: #E64A4A;
+        }
+
+        /* Fresh 主題覆寫變數 */
+        .theme-fresh {
+            --theme-bg: #F8FAFC;
+            --theme-black: #E2E8F0; /* 淡灰色邊框 */
+            --theme-border-width: 1px;
+            --theme-shadow-offset: 0px;
+            --theme-shadow-sm-offset: 0px;
+            --theme-accent: #93C5FD; /* 更換為更輕盈美觀的淺藍色 */
+            --theme-danger: #EF4444;
+        }
+
         body { 
-          font-family: 'Patrick Hand', 'Noto Sans TC', sans-serif;
-          background-color: #FDFCF8;
-          color: #000000;
+            font-family: 'Noto Sans TC', 'Patrick Hand', sans-serif;
+            background-color: var(--theme-bg);
+            color: #000;
+            transition: background-color 0.3s ease;
+            -webkit-font-smoothing: antialiased;
         }
+
+        /* 核心樣式 - 使用 CSS 變數控制 */
         .comic-border {
-          border: 3px solid #000000;
+            border: var(--theme-border-width) solid var(--theme-black);
+            transition: border 0.3s ease;
         }
+
         .comic-shadow {
-          box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+            box-shadow: var(--theme-shadow-offset) var(--theme-shadow-offset) 0px 0px var(--theme-black);
+            transition: transform 0.1s ease, box-shadow 0.3s ease;
         }
+        
+        /* Fresh 主題下的陰影改為現代柔和感 */
+        .theme-fresh .comic-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            background-color: #FFFFFF;
+            border-color: #F1F5F9;
+        }
+        
+        .theme-fresh .comic-shadow:active {
+            transform: scale(0.98);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
         .comic-shadow-sm {
-          box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+            box-shadow: var(--theme-shadow-sm-offset) var(--theme-shadow-sm-offset) 0px 0px var(--theme-black);
+            transition: box-shadow 0.3s ease;
         }
+
+        .theme-fresh .comic-shadow-sm {
+            box-shadow: none;
+            border-color: #F1F5F9;
+        }
+
+        /* 針對 Fresh 主題的細節調整 */
+        .theme-fresh header h1 span {
+            background-color: var(--theme-accent) !important;
+            border-width: 1px !important;
+            color: #1E3A8A !important; /* 深藍色文字，增加在淺藍底上的可讀性 */
+            border-color: #BFDBFE !important;
+        }
+
+        .theme-fresh nav {
+            border-color: #F1F5F9 !important;
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-fresh nav button.bg-black {
+            background-color: var(--theme-accent) !important;
+            color: #1E3A8A !important; /* 導覽列選中時的文字顏色 */
+        }
+
         /* 隱藏捲軸 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        button:active {
-          transform: translate(2px, 2px);
-          box-shadow: none !important;
+
+        @keyframes pop-in {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: pop-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
     </style>
 <script type="importmap">
@@ -42,10 +114,8 @@
   }
 }
 </script>
-<!-- <link rel="stylesheet" href="/index.css"> -->
 </head>
-<body class="text-slate-900">
+<body class="text-slate-900 overflow-x-hidden">
     <div id="root"></div>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>

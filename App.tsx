@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppState, Transaction, Category } from './types';
 import { TABS } from './constants';
@@ -12,7 +11,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
-  const [isInputActive, setIsInputActive] = useState(false); // 新增：追蹤輸入框是否被選取（鍵盤是否可能彈出）
+  const [isInputActive, setIsInputActive] = useState(false); 
   
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('trip_split_state');
@@ -23,7 +22,8 @@ const App: React.FC = () => {
       exchangeRate: 35.5,
       defaultCurrency: 'CHF',
       currentUser: '1',
-      sheetUrl: 'https://script.google.com/macros/s/AKfycbyJbyRJv0sXY1Dm8mcRcsvmCIxWhcRsdGzwFNF6RjGWNnZHMi0wcpAAjmAshG2OujWdhw/exec'
+      sheetUrl: 'https://script.google.com/macros/s/AKfycbyJbyRJv0sXY1Dm8mcRcsvmCIxWhcRsdGzwFNF6RjGWNnZHMi0wcpAAjmAshG2OujWdhw/exec',
+      theme: 'comic'
     };
   });
 
@@ -31,7 +31,6 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, ...updates }));
   };
 
-  // 自動偵測輸入狀態以隱藏導覽列
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
@@ -169,12 +168,10 @@ const App: React.FC = () => {
 
   const currentUserObj = state.members.find(m => m.id === state.currentUser);
   const isGlobalLocked = isSyncing || isAIProcessing;
-
-  // 導覽列隱藏邏輯：AI 處理中、雲端同步中、或使用者正在輸入時隱藏
   const shouldHideNav = isGlobalLocked || isInputActive;
 
   return (
-    <div className="max-w-md mx-auto min-h-screen flex flex-col relative bg-[#FDFCF8] overflow-x-hidden">
+    <div className={`max-w-md mx-auto min-h-screen flex flex-col relative overflow-x-hidden theme-${state.theme || 'comic'}`}>
       {isGlobalLocked && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 comic-shadow flex flex-col items-center gap-5 scale-110">
@@ -190,7 +187,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="px-4 sm:px-6 py-8 bg-[#FDFCF8] sticky top-0 z-20">
+      <header className="px-2.5 sm:px-6 py-8 sticky top-0 z-20 transition-colors duration-300">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-slate-900 flex items-center gap-2">
@@ -213,12 +210,11 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className={`flex-1 px-4 sm:px-6 pb-32 transition-opacity duration-300 ${isGlobalLocked ? 'opacity-50' : 'opacity-100'}`}>
+      <main className={`flex-1 px-2.5 sm:px-6 pb-32 transition-opacity duration-300 ${isGlobalLocked ? 'opacity-50' : 'opacity-100'}`}>
         {renderContent()}
       </main>
 
-      {/* 底部導覽列優化：增加 translate-y 隱藏動畫，且在 input 啟動時完全消失 */}
-      <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-white border-[3px] border-black rounded-[2.5rem] p-2 flex justify-between items-center z-40 shadow-2xl transition-all duration-300 transform ${
+      <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-sm:w-[96%] max-w-sm bg-white border-[3px] border-black rounded-[2.5rem] p-2 flex justify-between items-center z-40 shadow-2xl transition-all duration-300 transform ${
         shouldHideNav 
           ? 'translate-y-[200%] opacity-0 pointer-events-none' 
           : 'translate-y-0 opacity-100'
