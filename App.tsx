@@ -157,7 +157,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 comic-shadow flex flex-col items-center gap-5">
             <Sparkles size={48} className="text-[#F6D32D] animate-pulse" />
-            <div className="text-center font-black">同步雲端資料...</div>
+            <div className="text-center font-black">圖片資料辨識AI辨識中...</div>
           </div>
         </div>
       )}
