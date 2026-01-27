@@ -9,9 +9,10 @@ interface OverviewProps {
   state: AppState;
   onAddTransaction: (t: Partial<Transaction>) => void;
   setIsAIProcessing: (loading: boolean) => void;
+  onEditTransaction: (id: string) => void;
 }
 
-const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIProcessing }) => {
+const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIProcessing, onEditTransaction }) => {
   const totalExpense = state.transactions.reduce((acc, t) => acc + t.ntdAmount, 0);
 
   const calculateStats = () => {
@@ -137,14 +138,17 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         </div>
         <div className="space-y-5">
           {recentTransactions.map(t => {
-            // 幣別顯示邏輯優化
             const displayCurrency = t.currency || state.defaultCurrency;
             const hasOriginalAmount = t.originalAmount > 0;
             const isNotTwd = displayCurrency !== 'TWD';
             const shouldShowOriginal = hasOriginalAmount || isNotTwd;
 
             return (
-              <div key={t.id} className="bg-white comic-border p-4 sm:p-7 rounded-[2rem] flex flex-col gap-4 sm:gap-6 comic-shadow transition-all relative group overflow-hidden">
+              <div 
+                key={t.id} 
+                onClick={() => onEditTransaction(t.id)}
+                className="bg-white comic-border p-4 sm:p-7 rounded-[2rem] flex flex-col gap-4 sm:gap-6 comic-shadow transition-all relative group overflow-hidden cursor-pointer active:scale-[0.98]"
+              >
                 <div className="flex items-start gap-3 sm:gap-4">
                   <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
                     {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 20 })}

@@ -5,13 +5,14 @@ import { TABS, MASTER_GAS_URL } from './constants';
 import Overview from './components/Overview';
 import Details from './components/Details';
 import Settings from './components/Settings';
-import { fetchManagementConfig, fetchTransactionsFromSheet, saveToGoogleSheet } from './services/sheets';
+import { fetchManagementConfig, fetchTransactionsFromSheet, saveToGoogleSheet, deleteTransactionFromSheet } from './services/sheets';
 import { Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [initialEditId, setInitialEditId] = useState<string | null>(null);
   
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('trip_split_master_state_v2');
@@ -22,7 +23,7 @@ const App: React.FC = () => {
       members: [], 
       transactions: [],
       exchangeRate: 1,
-      defaultCurrency: 'TWD', // 預設 TWD 作為最底層保底
+      defaultCurrency: 'TWD',
       currentUser: '',
       theme: 'comic'
     };
@@ -32,41 +33,26 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, ...updates }));
   };
 
-  /**
-   * 同步特定帳本的資料
-   */
   const syncLedgerData = useCallback(async (ledger: Ledger) => {
     setIsSyncing(true);
     try {
       const records = await fetchTransactionsFromSheet(ledger.url);
-      
-      // 處理成員清單
       let ledgerMembers: Member[] = ledger.members.map(name => ({ id: name, name }));
       if (ledgerMembers.length === 0) {
         ledgerMembers = [{ id: '訪客', name: '訪客' }];
       }
 
       const ledgerCurrency = ledger.currency || 'JPY';
-
-      // 核心修正：同步資料時的清洗邏輯
       const sanitizedRecords = records.map(r => {
         let finalCurrency = r.currency || ledgerCurrency;
-        
-        // 特殊校正：如果原始金額是 0，但台幣金額有值，且標記為 TWD
-        // 這通常是 AI 誤判或手動輸入遺漏導致，應強制轉回行程幣別
         if (r.originalAmount === 0 && r.ntdAmount > 0 && finalCurrency === 'TWD' && ledgerCurrency !== 'TWD') {
           finalCurrency = ledgerCurrency;
         }
-
-        return {
-          ...r,
-          currency: finalCurrency
-        };
+        return { ...r, currency: finalCurrency };
       });
 
       let nextCurrentUser = state.currentUser;
       const isUserStillValid = ledgerMembers.some(m => m.id === state.currentUser);
-      
       if (!isUserStillValid || !state.currentUser) {
         nextCurrentUser = ledgerMembers[0].id;
       }
@@ -82,15 +68,12 @@ const App: React.FC = () => {
       });
     } catch (e) {
       console.error(e);
-      alert('子帳本資料載入失敗，請確認該行程的 GAS 是否部署正確。');
+      alert('子帳本資料載入失敗');
     } finally {
       setIsSyncing(false);
     }
   }, [state.currentUser]);
 
-  /**
-   * 載入主管理表
-   */
   const loadManagement = useCallback(async () => {
     setIsSyncing(true);
     try {
@@ -98,21 +81,18 @@ const App: React.FC = () => {
       if (ledgers.length > 0) {
         const savedId = localStorage.getItem('last_active_ledger_id');
         const active = ledgers.find(l => l.id === savedId) || ledgers[0];
-        
         updateState({ ledgers });
         await syncLedgerData(active);
       }
     } catch (e) {
       console.error(e);
-      alert('無法取得帳本列表，請檢查網路連線。');
+      alert('無法取得帳本列表');
     } finally {
       setIsSyncing(false);
     }
   }, [syncLedgerData]);
 
-  useEffect(() => {
-    loadManagement();
-  }, []);
+  useEffect(() => { loadManagement(); }, []);
 
   useEffect(() => {
     localStorage.setItem('trip_split_master_state_v2', JSON.stringify(state));
@@ -123,10 +103,7 @@ const App: React.FC = () => {
 
   const onAddTransaction = async (t: Partial<Transaction>) => {
     const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
-    if (!activeLedger) {
-      alert('請先選擇一個帳本');
-      return;
-    }
+    if (!activeLedger) return;
 
     const isSplit = t.isSplit ?? true;
     const payerId = t.payerId || state.currentUser;
@@ -151,6 +128,28 @@ const App: React.FC = () => {
     updateState({ transactions: [newTransaction, ...state.transactions] });
     saveToGoogleSheet(activeLedger.url, newTransaction, state.members);
     setActiveTab('overview');
+  };
+
+  // 修正：刪除交易並跳轉至明細頁
+  const onDeleteTransaction = async (id: string) => {
+    const t = state.transactions.find(item => item.id === id);
+    if (!t) return;
+
+    // 先更新 UI 狀態
+    updateState({ transactions: state.transactions.filter(item => item.id !== id) });
+    
+    // 如果有雲端連結則同步刪除
+    if (state.sheetUrl && t.rowIndex !== undefined) {
+      await deleteTransactionFromSheet(state.sheetUrl, t.rowIndex);
+    }
+
+    // 關鍵：跳轉回明細頁
+    setActiveTab('details');
+  };
+
+  const onEditFromOverview = (id: string) => {
+    setInitialEditId(id);
+    setActiveTab('details');
   };
 
   const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
@@ -184,14 +183,23 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 px-6 pb-32">
-        {activeTab === 'overview' && <Overview state={state} onAddTransaction={onAddTransaction} setIsAIProcessing={setIsAIProcessing} />}
+        {activeTab === 'overview' && (
+          <Overview 
+            state={state} 
+            onAddTransaction={onAddTransaction} 
+            setIsAIProcessing={setIsAIProcessing} 
+            onEditTransaction={onEditFromOverview}
+          />
+        )}
         {activeTab === 'details' && (
           <Details 
             state={state} 
-            onDeleteTransaction={(id) => updateState({ transactions: state.transactions.filter(t => t.id !== id) })} 
+            onDeleteTransaction={onDeleteTransaction} 
             updateState={updateState} 
             onSync={() => activeLedger && syncLedgerData(activeLedger)} 
             isSyncing={isSyncing} 
+            initialEditId={initialEditId}
+            onClearInitialEdit={() => setInitialEditId(null)}
           />
         )}
         {activeTab === 'settings' && <Settings state={state} updateState={updateState} onReloadManagement={loadManagement} onSwitchLedger={syncLedgerData} />}
