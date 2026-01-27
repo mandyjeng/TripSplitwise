@@ -1,125 +1,130 @@
 
-import { Transaction, Member, Category } from '../types';
+import { Transaction, Member, Category, Ledger } from '../types';
 
 /**
- * 解析日期字串，確保不因時區導致日期減一天
+ * 從「主管理表」抓取所有帳本配置
  */
-const parseLocalDate = (dateStr: string): string => {
-  if (!dateStr) return '';
-  
-  // 如果字串包含 T (ISO 格式)，利用 Date 物件轉為本地時間
-  if (dateStr.includes('T')) {
-    const d = new Date(dateStr);
-    // 檢查是否為無效日期
-    if (isNaN(d.getTime())) return dateStr.split('T')[0];
-    
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
+  if (!url) return [];
+  // 檢查是否為錯誤的連結格式
+  if (!url.includes('/exec')) {
+    console.warn('警告：提供的網址可能不是有效的 Web App 執行網址 (需以 /exec 結尾)');
   }
   
-  // 如果已經是 YYYY-MM-DD 格式則直接回傳
-  return dateStr.split(' ')[0];
-};
-
-/**
- * 從 Google Sheet 抓取所有紀錄 (支援傳回 rowIndex)
- */
-export const fetchTransactionsFromSheet = async (url: string): Promise<Partial<Transaction>[]> => {
-  if (!url) return [];
   try {
-    const response = await fetch(url);
-    const data = await response.json();
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     
-    return data.map((row: any) => ({
-      id: `sheet-${row.rowIndex}`,
-      rowIndex: row.rowIndex,
-      // 使用改進後的解析函數，修正 1 天的時間差
-      date: parseLocalDate(row.date),
-      merchant: row.merchant || '',
-      item: row.item || '',
-      category: row.category as Category,
-      type: row.accountType as '公帳' | '私帳',
-      payerId: row.payer || '', 
-      currency: row.currency || '',
-      originalAmount: Number(row.originalAmount) || 0,
-      ntdAmount: Number(row.ntdAmount) || 0,
-      isSplit: row.isSplit === '是',
-      splitWith: row.splitWith ? row.splitWith.split(', ') : [],
-      exchangeRate: row.originalAmount > 0 ? (row.ntdAmount / row.originalAmount) : undefined
+    const data = await response.json();
+    console.log('Master Config Data:', data);
+
+    if (data.error) {
+      alert(`GAS 錯誤：${data.error}`);
+      return [];
+    }
+
+    const rawLedgers = data.ledgers || [];
+    return rawLedgers.map((l: any) => ({
+      id: String(l['ID'] || l.id),
+      name: String(l['名稱'] || l.name || '未命名'),
+      url: String(l['GAS_URL'] || l.url || ''),
+      currency: String(l['幣別'] || l.currency || 'TWD'),
+      exchangeRate: Number(l['匯率'] || l.exchangeRate) || 1,
+      members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()) : []
     }));
   } catch (error) {
-    console.error('Failed to fetch data:', error);
+    console.error('Fetch management failed:', error);
+    alert('無法連線至主管理表，請確保 GAS 已部屬為「網頁應用程式」且權限設為「所有人」。');
     return [];
   }
 };
 
+const parseLocalDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr).split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 /**
- * 將交易紀錄傳送到 Google Sheet (新增)
+ * 從「子帳本」抓取交易紀錄
  */
-export const saveToGoogleSheet = async (url: string, transaction: Transaction, members: Member[]) => {
+export const fetchTransactionsFromSheet = async (url: string): Promise<Partial<Transaction>[]> => {
+  if (!url) return [];
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    const data = await response.json();
+    
+    // 支援直接回傳陣列或包在 transactions 屬性中
+    const records = Array.isArray(data) ? data : (data.transactions || []);
+    
+    return records.map((row: any) => ({
+      id: `sheet-${row.rowIndex}`,
+      rowIndex: row.rowIndex,
+      date: parseLocalDate(row['日期']),
+      merchant: row['消費店家'] || '',
+      item: row['消費細節'] || '',
+      category: row['分類'] as Category,
+      type: row['帳務類型'] as '公帳' | '私帳',
+      payerId: row['付款人'] || '', 
+      currency: row['原始幣別'] || '',
+      originalAmount: Number(row['原始金額']) || 0,
+      ntdAmount: Number(row['台幣金額']) || 0,
+      isSplit: row['是否拆帳'] === '是' || row['是否拆帳'] === true,
+      splitWith: row['參與成員'] ? String(row['參與成員']).split(',').map(s => s.trim()) : [],
+    }));
+  } catch (error) {
+    console.error('Fetch transactions failed:', error);
+    return [];
+  }
+};
+
+export const saveToGoogleSheet = async (url: string, t: Transaction, members: Member[]) => {
   if (!url) return;
-  const payload = createPayload('ADD_TRANSACTION', transaction, members);
-  try {
-    await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-  } catch (e) { console.error(e); }
-};
-
-/**
- * 更新 Google Sheet 中的特定列 (修改)
- */
-export const updateTransactionInSheet = async (url: string, transaction: Transaction, members: Member[]) => {
-  if (!url || !transaction.rowIndex) return;
-  const payload = createPayload('UPDATE_TRANSACTION', transaction, members);
-  try {
-    await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-  } catch (e) { console.error(e); }
-};
-
-/**
- * 從 Google Sheet 刪除特定列 (刪除)
- */
-export const deleteTransactionFromSheet = async (url: string, rowIndex: number) => {
-  if (!url || !rowIndex) return;
-  try {
-    await fetch(url, { 
-      method: 'POST', 
-      mode: 'no-cors', 
-      body: JSON.stringify({ type: 'DELETE_TRANSACTION', rowIndex }) 
-    });
-  } catch (e) { console.error(e); }
-};
-
-const createPayload = (type: string, t: Transaction, members: Member[]) => {
-  const payerName = members.find(m => m.id === t.payerId)?.name || t.payerId;
-  
-  const splitNames = t.splitWith
-    .map(id => members.find(m => m.id === id)?.name || id)
-    .join(', ');
-
-  return {
-    type,
-    rowIndex: t.rowIndex,
-    date: String(t.date).split('T')[0],
-    merchant: t.merchant,
-    item: t.item,
-    category: t.category,
-    accountType: t.type,
-    payer: payerName,
-    currency: t.currency,
-    originalAmount: t.originalAmount,
-    ntdAmount: t.ntdAmount,
-    isSplit: t.isSplit ? '是' : '否',
-    splitWith: splitNames,
-    exchangeRate: t.exchangeRate
+  const payload = {
+    type: 'ADD_TRANSACTION',
+    '日期': t.date,
+    '消費店家': t.merchant,
+    '消費細節': t.item,
+    '分類': t.category,
+    '帳務類型': t.type,
+    '付款人': members.find(m => m.id === t.payerId)?.name || t.payerId,
+    '原始幣別': t.currency,
+    '原始金額': t.originalAmount,
+    '台幣金額': t.ntdAmount,
+    '是否拆帳': t.isSplit ? '是' : '否',
+    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(',')
   };
+  try {
+    await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+  } catch (e) { console.error(e); }
 };
 
-export const syncExchangeRateToSheet = async (url: string, rate: number) => {
+export const updateTransactionInSheet = async (url: string, t: Transaction, members: Member[]) => {
+  if (!url || !t.rowIndex) return;
+  const payload = {
+    type: 'UPDATE_TRANSACTION',
+    rowIndex: t.rowIndex,
+    '日期': t.date,
+    '消費店家': t.merchant,
+    '消費細節': t.item,
+    '分類': t.category,
+    '帳務類型': t.type,
+    '付款人': members.find(m => m.id === t.payerId)?.name || t.payerId,
+    '原始幣別': t.currency,
+    '原始金額': t.originalAmount,
+    '台幣金額': t.ntdAmount,
+    '是否拆帳': t.isSplit ? '是' : '否',
+    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(',')
+  };
+  try {
+    await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+  } catch (e) { console.error(e); }
+};
+
+export const deleteTransactionFromSheet = async (url: string, rowIndex: number) => {
   if (!url) return;
   try {
-    await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ type: 'UPDATE_RATE', rate }) });
-    return true;
-  } catch (e) { return false; }
+    await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ type: 'DELETE_TRANSACTION', rowIndex }) });
+  } catch (e) { console.error(e); }
 };

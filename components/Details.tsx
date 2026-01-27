@@ -1,17 +1,13 @@
+
 import React, { useState } from 'react';
-import { Transaction, Member, Category } from '../types';
+import { Transaction, Member, Category, AppState } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
 import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2 } from 'lucide-react';
 import { updateTransactionInSheet, deleteTransactionFromSheet } from '../services/sheets';
 
 interface DetailsProps {
-  state: {
-    transactions: Transaction[];
-    members: Member[];
-    sheetUrl?: string;
-    exchangeRate: number;
-    currentUser: string;
-  };
+  /* Use AppState to ensure consistency with the state passed from the main App component */
+  state: AppState;
   onDeleteTransaction: (id: string) => void;
   updateState: (updates: any) => void;
   onSync: () => void;

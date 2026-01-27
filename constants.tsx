@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import { Category } from './types';
 
+// 硬編碼的 Master GAS 網址
+export const MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbyArkP10_bTTw7my8frRcNEttNbdEM8oaL9pHqNEXwE2BoEmBABuVGUVlVskaKVr-HR/exec';
+
 export const CATEGORIES: Category[] = ['住宿', '交通', '門票', '用餐', '雜項', '保險', '個人消費'];
 
 export const CATEGORY_ICONS: Record<Category, React.ReactNode> = {

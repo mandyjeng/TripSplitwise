@@ -6,9 +6,18 @@ export interface Member {
   name: string;
 }
 
+export interface Ledger {
+  id: string;
+  name: string;
+  url: string;
+  currency: string;
+  exchangeRate: number;
+  members: string[];
+}
+
 export interface Transaction {
   id: string;
-  rowIndex?: number; // 新增：對應 Google Sheet 的行號
+  rowIndex?: number;
   date: string;
   item: string;
   merchant: string;
@@ -24,11 +33,14 @@ export interface Transaction {
 }
 
 export interface AppState {
+  activeLedgerId: string;
+  ledgers: Ledger[];
   members: Member[];
   transactions: Transaction[];
   exchangeRate: number;
-  defaultCurrency: string; // 新增：預設外幣幣別
+  defaultCurrency: string;
   currentUser: string;
+  theme?: 'comic' | 'fresh';
+  /* sheetUrl tracks the Google Sheet Web App URL for the active ledger */
   sheetUrl?: string;
-  theme?: 'comic' | 'fresh'; // 新增：主題設定
 }
