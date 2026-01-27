@@ -10,7 +10,7 @@ const expenseSchema = {
   type: SchemaType.OBJECT,
   properties: {
     merchant: { type: SchemaType.STRING, description: '消費店家名稱（如：Starbucks, Migros, Coop）。若無明確店家則回傳「未指定店家」' },
-    item: { type: SchemaType.STRING, description: '品項清單，多個品項請用換行分隔。' },
+    item: { type: Type.STRING, description: '品項清單，必須包含品項名稱與對應金額，多個品項請用換行分隔。' },
     amount: { type: SchemaType.NUMBER, description: '總金額' },
     currency: { type: SchemaType.STRING, description: '幣別，如 CHF, EUR, JPY, TWD' },
     category: { type: SchemaType.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險' },
@@ -73,16 +73,15 @@ export default async function handler(req: any, res: any) {
                 - 提取最像店家的名稱（通常是輸入的第一個詞，如 coop, starbucks）。
                 - 如果輸入中沒有提到任何像店名的詞，請務必回傳「未指定店家」。
               2. 項目內容 (item)：
-                - 請列出所有品項與其後面的數字。
+                - 請列出所有品項與其後面的金額。
                 - 多個品項請務必使用換行分隔。
                 - 例如輸入 "Coop 咖啡3 早餐2"，item 應為:
-                  咖啡3
-                  早餐2
+                  咖啡 3
+                  早餐 2
               3. 金額 (amount)：
                 - 自動將輸入中出現的所有數字相加作為最終總金額。
-                - 例如：3 + 2 = 5。
               4. 幣別 (currency)：優先使用 ${defaultCurrency}。
-              5. 分類 (category)：根據內容判斷，用餐、交通等。`,
+              5. 分類 (category)：根據內容判斷。`,
             }]
           }
         ]
@@ -105,7 +104,7 @@ export default async function handler(req: any, res: any) {
               
               規則：
               1. 項目內容 (item) 格式：
-                 [繁體中文翻譯後的品項清單]
+                 [繁體中文翻譯後的品項清單、數量與單價]
                  ------------------
                  [收據上的原始品項內容、數量與單價]
               2. 確保翻譯位於上半部，分隔線在中間，原文在下半部。

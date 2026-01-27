@@ -18,7 +18,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('trip_split_state');
     if (saved) return JSON.parse(saved);
     return {
-      members: [{ id: 'mandy', name: 'mandy' }], // 預設 ID 改為與名稱一致
+      members: [{ id: 'mandy', name: 'mandy' }], 
       transactions: [],
       exchangeRate: 35.5,
       defaultCurrency: 'CHF',
@@ -58,40 +58,47 @@ const App: React.FC = () => {
       const cloudRecords = await fetchTransactionsFromSheet(state.sheetUrl);
       if (cloudRecords.length === 0) return;
 
-      // 1. 提取所有出現在雲端的「有效」名稱
+      // 1. 提取有效名稱，過濾掉 #ERROR! 或空值
       const namesInCloud = new Set<string>();
+      const isValidName = (name: any) => {
+        if (!name) return false;
+        const s = String(name).trim();
+        return s !== '' && s !== '#ERROR!' && s !== 'null' && s !== 'undefined';
+      };
+
       cloudRecords.forEach(r => {
-        // 過濾掉空值、錯誤字串
-        const isValid = (name: string) => name && name !== '#ERROR!' && name !== 'null' && name.trim() !== '';
-        
-        if (r.payerId && isValid(r.payerId)) namesInCloud.add(r.payerId.trim());
+        if (isValidName(r.payerId)) namesInCloud.add(String(r.payerId).trim());
         if (r.splitWith) {
           r.splitWith.forEach(name => {
-            if (isValid(name)) namesInCloud.add(name.trim());
+            if (isValidName(name)) namesInCloud.add(String(name).trim());
           });
         }
       });
 
-      // 2. 建立新的 Member 列表，使用名稱作為 ID 以免產生亂碼
+      // 2. 建立成員列表，統一使用名稱作為 ID 避免產生亂碼 ID
       const updatedMembers: Member[] = [];
       namesInCloud.forEach(name => {
         updatedMembers.push({ id: name, name: name });
       });
 
-      // 如果雲端完全沒人，至少保留預設的 mandy
-      if (updatedMembers.length === 0) {
+      // 保底機制：如果雲端沒人或沒 mandy，補上預設
+      if (!namesInCloud.has('mandy')) {
         updatedMembers.push({ id: 'mandy', name: 'mandy' });
       }
 
-      // 3. 重新映射交易紀錄的 ID
+      // 3. 映射交易紀錄
       const formattedTransactions = cloudRecords.map(r => {
-        const payerName = r.payerId?.trim() || 'mandy';
-        const splitNames = r.splitWith?.map(n => n.trim()).filter(n => n !== '#ERROR!') || [payerName];
+        const rawPayer = String(r.payerId || 'mandy').trim();
+        const payerName = isValidName(rawPayer) ? rawPayer : 'mandy';
+        
+        const splitNames = r.splitWith
+          ?.map(n => String(n).trim())
+          .filter(isValidName) || [payerName];
         
         return {
           ...r,
-          payerId: payerName, // 現在 ID 就是名字
-          splitWith: splitNames,
+          payerId: payerName,
+          splitWith: splitNames.length > 0 ? splitNames : [payerName],
           exchangeRate: r.exchangeRate || state.exchangeRate
         } as Transaction;
       });
@@ -101,9 +108,9 @@ const App: React.FC = () => {
         members: updatedMembers 
       });
       
-      if (!silent) console.log(`已自動更新 ${formattedTransactions.length} 筆資料`);
+      if (!silent) console.log(`已自動同步 ${formattedTransactions.length} 筆資料`);
     } catch (e) {
-      console.error('Auto sync failed:', e);
+      console.error('Sync failed:', e);
     } finally {
       setIsSyncing(false);
     }
@@ -182,7 +189,6 @@ const App: React.FC = () => {
 
   const currentUserObj = state.members.find(m => m.id === state.currentUser);
   const isGlobalLocked = isSyncing || isAIProcessing;
-  const shouldHideNav = isGlobalLocked || isInputActive;
 
   return (
     <div className={`max-w-md mx-auto min-h-screen flex flex-col relative overflow-x-hidden theme-${state.theme || 'comic'}`}>
@@ -195,31 +201,23 @@ const App: React.FC = () => {
             </div>
             <div className="flex flex-col items-center">
               <span className="font-black text-xl italic tracking-widest text-black">AI THINKING...</span>
-              <span className="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">請稍候，正在為您整理帳目</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">正在為您整理帳目</span>
             </div>
           </div>
         </div>
       )}
 
-      <header className="px-2.5 sm:px-6 py-8 sticky top-0 z-20 transition-colors duration-300">
+      <header className="px-2.5 sm:px-6 py-8 sticky top-0 z-20">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-slate-900 flex items-center gap-2">
               TripSplit <span className="bg-[#F6D32D] text-sm px-3 py-1.5 rounded-full font-black border-2 border-black">AI</span>
             </h1>
             <p className="text-slate-400 text-sm font-black uppercase tracking-widest leading-none">極簡旅遊記帳</p>
-            {isSyncing && (
-              <div className="inline-flex mt-3 bg-black text-white px-3 py-1 rounded-full text-[10px] font-black uppercase items-center gap-2 animate-pulse border-2 border-black">
-                <RefreshCw size={10} className="animate-spin" />
-                雲端同步中
-              </div>
-            )}
           </div>
           
-          <div className="flex flex-col items-end gap-2">
-            <div className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black text-base comic-shadow-sm whitespace-nowrap">
-              {currentUserObj?.name || '...'}
-            </div>
+          <div className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black text-base comic-shadow-sm">
+            {currentUserObj?.name || '...'}
           </div>
         </div>
       </header>
@@ -228,21 +226,17 @@ const App: React.FC = () => {
         {renderContent()}
       </main>
 
-      <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-sm:w-[96%] max-w-sm bg-white border-[3px] border-black rounded-[2.5rem] p-2 flex justify-between items-center z-40 shadow-2xl transition-all duration-300 transform ${
-        shouldHideNav 
-          ? 'translate-y-[200%] opacity-0 pointer-events-none' 
-          : 'translate-y-0 opacity-100'
+      <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-white border-[3px] border-black rounded-[2.5rem] p-2 flex justify-between items-center z-40 shadow-2xl transition-all duration-300 ${
+        isGlobalLocked || isInputActive ? 'translate-y-[200%] opacity-0' : 'translate-y-0 opacity-100'
       }`}>
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-4 rounded-[2rem] ${activeTab === tab.id ? 'bg-black text-white shadow-lg' : 'text-slate-300'}`}
+            className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-4 rounded-[2rem] ${activeTab === tab.id ? 'bg-black text-white' : 'text-slate-300'}`}
           >
             {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 24 })}
-            <span className="text-xs font-black uppercase tracking-widest">
-              {tab.label}
-            </span>
+            <span className="text-xs font-black uppercase tracking-widest">{tab.label}</span>
           </button>
         ))}
       </nav>
