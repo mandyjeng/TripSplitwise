@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppState, Transaction, Category } from './types';
+import { AppState, Transaction, Category, Member } from './types';
 import { TABS } from './constants';
 import Overview from './components/Overview';
 import Details from './components/Details';
@@ -17,11 +18,11 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('trip_split_state');
     if (saved) return JSON.parse(saved);
     return {
-      members: [{ id: '1', name: 'mandy' }],
+      members: [{ id: 'mandy', name: 'mandy' }], // 預設 ID 改為與名稱一致
       transactions: [],
       exchangeRate: 35.5,
       defaultCurrency: 'CHF',
-      currentUser: '1',
+      currentUser: 'mandy',
       sheetUrl: 'https://script.google.com/macros/s/AKfycbyJbyRJv0sXY1Dm8mcRcsvmCIxWhcRsdGzwFNF6RjGWNnZHMi0wcpAAjmAshG2OujWdhw/exec',
       theme: 'comic'
     };
@@ -57,27 +58,40 @@ const App: React.FC = () => {
       const cloudRecords = await fetchTransactionsFromSheet(state.sheetUrl);
       if (cloudRecords.length === 0) return;
 
+      // 1. 提取所有出現在雲端的「有效」名稱
       const namesInCloud = new Set<string>();
       cloudRecords.forEach(r => {
-        if (r.payerId) namesInCloud.add(r.payerId);
-        if (r.splitWith) r.splitWith.forEach(name => namesInCloud.add(name));
-      });
-
-      const updatedMembers = [...state.members];
-      namesInCloud.forEach(name => {
-        if (!updatedMembers.some(m => m.name === name)) {
-          updatedMembers.push({ id: Math.random().toString(36).substr(2, 9), name: name });
+        // 過濾掉空值、錯誤字串
+        const isValid = (name: string) => name && name !== '#ERROR!' && name !== 'null' && name.trim() !== '';
+        
+        if (r.payerId && isValid(r.payerId)) namesInCloud.add(r.payerId.trim());
+        if (r.splitWith) {
+          r.splitWith.forEach(name => {
+            if (isValid(name)) namesInCloud.add(name.trim());
+          });
         }
       });
 
+      // 2. 建立新的 Member 列表，使用名稱作為 ID 以免產生亂碼
+      const updatedMembers: Member[] = [];
+      namesInCloud.forEach(name => {
+        updatedMembers.push({ id: name, name: name });
+      });
+
+      // 如果雲端完全沒人，至少保留預設的 mandy
+      if (updatedMembers.length === 0) {
+        updatedMembers.push({ id: 'mandy', name: 'mandy' });
+      }
+
+      // 3. 重新映射交易紀錄的 ID
       const formattedTransactions = cloudRecords.map(r => {
-        const payer = updatedMembers.find(m => m.name === r.payerId);
-        const splitIds = r.splitWith?.map(name => updatedMembers.find(m => m.name === name)?.id).filter(Boolean) as string[];
+        const payerName = r.payerId?.trim() || 'mandy';
+        const splitNames = r.splitWith?.map(n => n.trim()).filter(n => n !== '#ERROR!') || [payerName];
         
         return {
           ...r,
-          payerId: payer?.id || updatedMembers[0].id,
-          splitWith: splitIds || [],
+          payerId: payerName, // 現在 ID 就是名字
+          splitWith: splitNames,
           exchangeRate: r.exchangeRate || state.exchangeRate
         } as Transaction;
       });
@@ -93,7 +107,7 @@ const App: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [state.sheetUrl, state.members, state.exchangeRate]);
+  }, [state.sheetUrl, state.exchangeRate]);
 
   useEffect(() => {
     syncFromCloud(true);
@@ -204,7 +218,7 @@ const App: React.FC = () => {
           
           <div className="flex flex-col items-end gap-2">
             <div className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black text-base comic-shadow-sm whitespace-nowrap">
-              {currentUserObj?.name}
+              {currentUserObj?.name || '...'}
             </div>
           </div>
         </div>
