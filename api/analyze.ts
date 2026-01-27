@@ -10,7 +10,7 @@ const expenseSchema = {
   type: SchemaType.OBJECT,
   properties: {
     merchant: { type: SchemaType.STRING, description: '消費店家名稱（如：Starbucks, Migros, Coop）。若無明確店家則回傳「未指定店家」' },
-    item: { type: Type.STRING, description: '品項清單，必須包含品項名稱與對應金額，多個品項請用換行分隔。' },
+    item: { type: SchemaType.STRING, description: '品項清單，必須包含品項名稱與對應金額，多個品項請用換行分隔。' },
     amount: { type: SchemaType.NUMBER, description: '總金額' },
     currency: { type: SchemaType.STRING, description: '幣別，如 CHF, EUR, JPY, TWD' },
     category: { type: SchemaType.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險' },
