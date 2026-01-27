@@ -130,20 +130,16 @@ const App: React.FC = () => {
     setActiveTab('overview');
   };
 
-  // 修正：刪除交易並跳轉至明細頁
   const onDeleteTransaction = async (id: string) => {
     const t = state.transactions.find(item => item.id === id);
     if (!t) return;
 
-    // 先更新 UI 狀態
     updateState({ transactions: state.transactions.filter(item => item.id !== id) });
     
-    // 如果有雲端連結則同步刪除
     if (state.sheetUrl && t.rowIndex !== undefined) {
       await deleteTransactionFromSheet(state.sheetUrl, t.rowIndex);
     }
 
-    // 關鍵：跳轉回明細頁
     setActiveTab('details');
   };
 
@@ -170,10 +166,10 @@ const App: React.FC = () => {
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-slate-900 flex items-center gap-2">
-              TripSplit <span className="bg-[#F6D32D] text-sm px-3 py-1.5 rounded-full border-2 border-black font-black italic">Go!</span>
+              {activeLedger?.name || '載入中...'} <span className="bg-[#F6D32D] text-sm px-3 py-1.5 rounded-full border-2 border-black font-black italic">Go!</span>
             </h1>
             <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-none">
-               {activeLedger?.name || '正在尋找帳本...'}
+               TripSplit AI 記帳助手
             </p>
           </div>
           <div className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black comic-shadow-sm truncate max-w-[120px]">

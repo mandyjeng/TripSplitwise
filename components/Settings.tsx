@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { AppState, Ledger } from '../types';
-import { Cloud, UserCheck, Palette, RefreshCw, Sparkles, Database, ChevronRight } from 'lucide-react';
+import { Cloud, UserCheck, Palette, RefreshCw, Sparkles, Database, ChevronRight, ExternalLink, Map } from 'lucide-react';
 
 interface SettingsProps {
   state: AppState;
@@ -11,6 +11,20 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagement, onSwitchLedger }) => {
+  const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
+
+  // 渲染帳本圖示：如果名稱是數字開頭（通常是年份），則顯示地圖圖示
+  const renderLedgerIcon = (name: string, isActive: boolean) => {
+    const firstChar = name.charAt(0);
+    const isNumeric = /^\d$/.test(firstChar);
+
+    return (
+      <div className={`w-12 h-12 border-2 border-black rounded-xl flex items-center justify-center font-black text-xl transition-colors ${isActive ? 'bg-white text-black' : 'bg-slate-200 text-slate-400'}`}>
+        {isNumeric ? <Map size={24} /> : firstChar}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8 pb-32">
       {/* 帳本切換中心 */}
@@ -30,40 +44,51 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
           </button>
         </div>
 
-        <div className="space-y-3.5">
-          <div className="flex justify-between items-center px-1 mb-2">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center px-1 mb-1">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">可切換的行程</label>
             <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">共 {state.ledgers.length} 個</span>
           </div>
           
           {state.ledgers.length > 0 ? (
             state.ledgers.map(l => (
-              <button 
-                key={l.id} 
-                onClick={() => onSwitchLedger(l)}
-                className={`w-full flex items-center justify-between p-4 rounded-2xl border-[3px] transition-all group ${
-                  state.activeLedgerId === l.id 
-                    ? 'bg-[#F6D32D] border-black shadow-sm translate-x-1 -translate-y-1' 
-                    : 'bg-slate-50 border-slate-100 hover:border-black/20'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 border-2 border-black rounded-xl flex items-center justify-center font-black text-xl transition-colors ${state.activeLedgerId === l.id ? 'bg-white' : 'bg-slate-200 text-slate-400'}`}>
-                    {l.name.charAt(0)}
-                  </div>
-                  <div className="text-left">
-                    <div className={`font-black text-base ${state.activeLedgerId === l.id ? 'text-black' : 'text-slate-500'}`}>{l.name}</div>
-                    <div className={`text-[10px] font-bold uppercase tracking-tight opacity-60 ${state.activeLedgerId === l.id ? 'text-black' : 'text-slate-400'}`}>
-                      {l.currency} @ {l.exchangeRate}
+              <div key={l.id} className="flex items-center gap-1">
+                {/* 左側：主切換按鈕 */}
+                <button 
+                  onClick={() => onSwitchLedger(l)}
+                  className={`flex-1 flex items-center justify-between p-4 rounded-2xl border-[3px] transition-all ${
+                    state.activeLedgerId === l.id 
+                      ? 'bg-[#F6D32D] border-black shadow-sm' 
+                      : 'bg-slate-50 border-slate-100 hover:border-black/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    {renderLedgerIcon(l.name, state.activeLedgerId === l.id)}
+                    <div className="text-left">
+                      <div className={`font-black text-base ${state.activeLedgerId === l.id ? 'text-black' : 'text-slate-500'}`}>{l.name}</div>
+                      <div className={`text-[10px] font-bold uppercase tracking-tight opacity-60 ${state.activeLedgerId === l.id ? 'text-black' : 'text-slate-400'}`}>
+                        {l.currency} @ {l.exchangeRate}
+                      </div>
                     </div>
                   </div>
-                </div>
-                {state.activeLedgerId === l.id ? (
-                  <Sparkles size={18} className="text-black animate-pulse" />
-                ) : (
-                  <ChevronRight size={18} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+                  {state.activeLedgerId === l.id && (
+                    <Sparkles size={18} className="text-black animate-pulse" />
+                  )}
+                </button>
+
+                {/* 右側：簡約圖示連結 (移除外框，僅保留圖示) */}
+                {l.sourceUrl && (
+                  <a 
+                    href={l.sourceUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    title="開啟原始試算表"
+                    className="p-3 text-slate-300 hover:text-blue-500 transition-colors flex items-center justify-center"
+                  >
+                    <ExternalLink size={20} />
+                  </a>
                 )}
-              </button>
+              </div>
             ))
           ) : (
             <div className="text-center py-12 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">

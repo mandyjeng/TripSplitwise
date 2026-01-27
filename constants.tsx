@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { Category } from './types';
 
-// 硬編碼的 Master GAS 網址
-export const MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbyArkP10_bTTw7my8frRcNEttNbdEM8oaL9pHqNEXwE2BoEmBABuVGUVlVskaKVr-HR/exec';
+// 更新後的新 Master GAS 網址 (有帶原始excel URL的)
+export const MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycby0j75fAgfmhmQhjXTIWVOv38JsLp1wULTTrXkvN9kGJsorqH0wv_HHIror0xHsM-Jx/exec';
 
 export const CATEGORIES: Category[] = ['住宿', '交通', '門票', '用餐', '雜項', '保險', '個人消費'];
 

@@ -6,16 +6,12 @@ import { Transaction, Member, Category, Ledger } from '../types';
  */
 export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
   if (!url) return [];
-  if (!url.includes('/exec')) {
-    console.warn('警告：提供的網址可能不是有效的 Web App 執行網址 (需以 /exec 結尾)');
-  }
   
   try {
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     
     const data = await response.json();
-    console.log('Master Config Data:', data);
 
     if (data.error) {
       alert(`GAS 錯誤：${data.error}`);
@@ -23,15 +19,20 @@ export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
     }
 
     const rawLedgers = data.ledgers || [];
-    return rawLedgers.map((l: any) => ({
-      id: String(l['ID'] || l.id),
-      name: String(l['名稱'] || l.name || '未命名'),
-      url: String(l['GAS_URL'] || l.url || ''),
-      // 移除這裡的 'TWD' 硬編碼，讓 App 決定
-      currency: String(l['幣別'] || l.currency || ''),
-      exchangeRate: Number(l['匯率'] || l.exchangeRate) || 1,
-      members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()) : []
-    }));
+    return rawLedgers.map((l: any) => {
+      // 容錯處理：找尋可能的原始連結欄位名稱
+      const sourceUrl = l['原始excel'] || l['原始Excel'] || l['sourceUrl'] || l['URL'] || '';
+      
+      return {
+        id: String(l['ID'] || l.id),
+        name: String(l['名稱'] || l.name || '未命名'),
+        url: String(l['GAS_URL'] || l.url || ''),
+        sourceUrl: String(sourceUrl).trim(),
+        currency: String(l['幣別'] || l.currency || 'TWD'),
+        exchangeRate: Number(l['匯率'] || l.exchangeRate) || 1,
+        members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()) : []
+      };
+    });
   } catch (error) {
     console.error('Fetch management failed:', error);
     return [];

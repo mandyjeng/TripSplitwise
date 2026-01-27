@@ -10,6 +10,7 @@ export interface Ledger {
   id: string;
   name: string;
   url: string;
+  sourceUrl?: string; // 新增：指向 Google Sheet 原始文件的連結
   currency: string;
   exchangeRate: number;
   members: string[];
