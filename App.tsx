@@ -22,7 +22,7 @@ const App: React.FC = () => {
       members: [], 
       transactions: [],
       exchangeRate: 1,
-      defaultCurrency: 'TWD',
+      defaultCurrency: 'TWD', // 預設 TWD 作為最底層保底
       currentUser: '',
       theme: 'comic'
     };
@@ -42,29 +42,43 @@ const App: React.FC = () => {
       
       // 處理成員清單
       let ledgerMembers: Member[] = ledger.members.map(name => ({ id: name, name }));
-      
-      // 如果試算表沒填旅伴，至少給一個預設值防止當機
       if (ledgerMembers.length === 0) {
         ledgerMembers = [{ id: '訪客', name: '訪客' }];
       }
 
-      // 關鍵邏輯：檢查目前的 currentUser 是否還在新的成員名單中
+      const ledgerCurrency = ledger.currency || 'JPY';
+
+      // 核心修正：同步資料時的清洗邏輯
+      const sanitizedRecords = records.map(r => {
+        let finalCurrency = r.currency || ledgerCurrency;
+        
+        // 特殊校正：如果原始金額是 0，但台幣金額有值，且標記為 TWD
+        // 這通常是 AI 誤判或手動輸入遺漏導致，應強制轉回行程幣別
+        if (r.originalAmount === 0 && r.ntdAmount > 0 && finalCurrency === 'TWD' && ledgerCurrency !== 'TWD') {
+          finalCurrency = ledgerCurrency;
+        }
+
+        return {
+          ...r,
+          currency: finalCurrency
+        };
+      });
+
       let nextCurrentUser = state.currentUser;
       const isUserStillValid = ledgerMembers.some(m => m.id === state.currentUser);
       
       if (!isUserStillValid || !state.currentUser) {
-        // 如果目前使用者不在這趟旅程，自動切換到該旅程的第一個人
         nextCurrentUser = ledgerMembers[0].id;
       }
 
       updateState({
-        transactions: records as Transaction[],
+        transactions: sanitizedRecords as Transaction[],
         members: ledgerMembers,
-        exchangeRate: ledger.exchangeRate,
-        defaultCurrency: ledger.currency,
+        exchangeRate: ledger.exchangeRate || 1,
+        defaultCurrency: ledgerCurrency,
         activeLedgerId: ledger.id,
         currentUser: nextCurrentUser,
-        sheetUrl: ledger.url // 確保同步更新子帳本網址
+        sheetUrl: ledger.url
       });
     } catch (e) {
       console.error(e);
@@ -82,7 +96,6 @@ const App: React.FC = () => {
     try {
       const ledgers = await fetchManagementConfig(MASTER_GAS_URL);
       if (ledgers.length > 0) {
-        // 優先找回上次使用的帳本，否則選第一個
         const savedId = localStorage.getItem('last_active_ledger_id');
         const active = ledgers.find(l => l.id === savedId) || ledgers[0];
         
@@ -127,7 +140,7 @@ const App: React.FC = () => {
       category: (t.category || '雜項') as Category,
       type: isSplit ? '公帳' : '私帳',
       payerId: payerId,
-      currency: t.currency || state.defaultCurrency,
+      currency: t.currency || state.defaultCurrency || 'JPY',
       originalAmount: t.originalAmount || 0,
       ntdAmount: t.ntdAmount || 0,
       splitWith: splitWith,

@@ -6,7 +6,6 @@ import { Transaction, Member, Category, Ledger } from '../types';
  */
 export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
   if (!url) return [];
-  // 檢查是否為錯誤的連結格式
   if (!url.includes('/exec')) {
     console.warn('警告：提供的網址可能不是有效的 Web App 執行網址 (需以 /exec 結尾)');
   }
@@ -28,13 +27,13 @@ export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
       id: String(l['ID'] || l.id),
       name: String(l['名稱'] || l.name || '未命名'),
       url: String(l['GAS_URL'] || l.url || ''),
-      currency: String(l['幣別'] || l.currency || 'TWD'),
+      // 移除這裡的 'TWD' 硬編碼，讓 App 決定
+      currency: String(l['幣別'] || l.currency || ''),
       exchangeRate: Number(l['匯率'] || l.exchangeRate) || 1,
       members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()) : []
     }));
   } catch (error) {
     console.error('Fetch management failed:', error);
-    alert('無法連線至主管理表，請確保 GAS 已部屬為「網頁應用程式」且權限設為「所有人」。');
     return [];
   }
 };
@@ -54,8 +53,6 @@ export const fetchTransactionsFromSheet = async (url: string): Promise<Partial<T
   try {
     const response = await fetch(url, { cache: 'no-store' });
     const data = await response.json();
-    
-    // 支援直接回傳陣列或包在 transactions 屬性中
     const records = Array.isArray(data) ? data : (data.transactions || []);
     
     return records.map((row: any) => ({

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Transaction, Member, AppState } from '../types';
 import AIInput from './AIInput';
@@ -76,7 +77,6 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
             <div className="w-2.5 h-8 sm:w-3 sm:h-9 bg-[#F6D32D] comic-border"></div>
             AI 智能記帳
           </h2>
-          {/* 新增匯率徽章 */}
           <div className="bg-white comic-border px-2 py-1 rounded-lg text-[10px] sm:text-xs font-black comic-shadow-sm flex items-center gap-1 whitespace-nowrap">
             <ArrowRightLeft size={12} className="text-slate-400" />
             1 {state.defaultCurrency} = {state.exchangeRate}
@@ -136,66 +136,76 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
           <span className="text-xs sm:text-sm font-bold text-slate-400 italic">僅顯示 3 筆</span>
         </div>
         <div className="space-y-5">
-          {recentTransactions.map(t => (
-            <div key={t.id} className="bg-white comic-border p-4 sm:p-7 rounded-[2rem] flex flex-col gap-4 sm:gap-6 comic-shadow transition-all relative group overflow-hidden">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                  {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 20 })}
-                </div>
+          {recentTransactions.map(t => {
+            // 幣別顯示邏輯優化
+            const displayCurrency = t.currency || state.defaultCurrency;
+            const hasOriginalAmount = t.originalAmount > 0;
+            const isNotTwd = displayCurrency !== 'TWD';
+            const shouldShowOriginal = hasOriginalAmount || isNotTwd;
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-base sm:text-lg text-black truncate leading-tight">{t.merchant}</span>
-                    </div>
-                    <div className="text-[12px] sm:text-sm font-bold text-slate-700 leading-snug whitespace-pre-line line-clamp-2">{t.item}</div>
+            return (
+              <div key={t.id} className="bg-white comic-border p-4 sm:p-7 rounded-[2rem] flex flex-col gap-4 sm:gap-6 comic-shadow transition-all relative group overflow-hidden">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
+                    {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 20 })}
                   </div>
-                </div>
 
-                <div className="text-right shrink-0 ml-1">
-                  <div className="text-[10px] font-bold text-slate-500 italic uppercase mb-0.5">
-                    {t.originalAmount} {t.currency}
-                  </div>
-                  <div className="font-black text-lg sm:text-xl text-black leading-none">
-                    <span className="text-[12px] mr-0.5 font-bold">NT$</span>
-                    {Math.round(t.ntdAmount).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t-2 border-slate-100 flex flex-col gap-3">
-                <div className="flex items-start gap-2.5">
-                  <div className="flex flex-col gap-2 shrink-0">
-                    <div className="flex items-center gap-2 text-[12px] sm:text-base font-black text-black bg-slate-100 px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl border-2 border-slate-200">
-                      <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-[#F6D32D] comic-border flex items-center justify-center text-black text-[9px] sm:text-[11px] font-black shrink-0">
-                        {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-base sm:text-lg text-black truncate leading-tight">{t.merchant}</span>
                       </div>
-                      <span className="whitespace-nowrap">{state.members.find(m => m.id === t.payerId)?.name}</span>
+                      <div className="text-[12px] sm:text-sm font-bold text-slate-700 leading-snug whitespace-pre-line line-clamp-2">{t.item}</div>
                     </div>
                   </div>
 
-                  <div className="h-7 w-[2px] bg-slate-200 mx-0.5 self-center"></div>
-                  
-                  <div className="flex flex-wrap gap-1 items-center flex-1 overflow-hidden pt-0.5">
-                    <span className="text-[9px] sm:text-sm font-black text-black shrink-0">分給:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {t.isSplit && t.splitWith.length === state.members.length ? (
-                        <span className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 sm:px-3 py-0.5 rounded-md sm:rounded-lg whitespace-nowrap">
-                          全部
-                        </span>
-                      ) : (
-                        t.splitWith.map(mid => (
-                          <span key={mid} className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 sm:px-3 py-0.5 rounded-md sm:rounded-lg whitespace-nowrap">
-                            {state.members.find(m => m.id === mid)?.name}
+                  <div className="text-right shrink-0 ml-1">
+                    {shouldShowOriginal && (
+                      <div className="text-[10px] font-bold text-slate-500 italic uppercase mb-0.5">
+                        {t.originalAmount} {displayCurrency}
+                      </div>
+                    )}
+                    <div className="font-black text-lg sm:text-xl text-black leading-none">
+                      <span className="text-[12px] mr-0.5 font-bold">NT$</span>
+                      {Math.round(t.ntdAmount).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t-2 border-slate-100 flex flex-col gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <div className="flex items-center gap-2 text-[12px] sm:text-base font-black text-black bg-slate-100 px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                        <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-[#F6D32D] comic-border flex items-center justify-center text-black text-[9px] sm:text-[11px] font-black shrink-0">
+                          {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="whitespace-nowrap">{state.members.find(m => m.id === t.payerId)?.name}</span>
+                      </div>
+                    </div>
+
+                    <div className="h-7 w-[2px] bg-slate-200 mx-0.5 self-center"></div>
+                    
+                    <div className="flex flex-wrap gap-1 items-center flex-1 overflow-hidden pt-0.5">
+                      <span className="text-[9px] sm:text-sm font-black text-black shrink-0">分給:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {t.isSplit && t.splitWith.length === state.members.length ? (
+                          <span className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 sm:px-3 py-0.5 rounded-md sm:rounded-lg whitespace-nowrap">
+                            全部
                           </span>
-                        ))
-                      )}
+                        ) : (
+                          t.splitWith.map(mid => (
+                            <span key={mid} className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 sm:px-3 py-0.5 rounded-md sm:rounded-lg whitespace-nowrap">
+                              {state.members.find(m => m.id === mid)?.name}
+                            </span>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {recentTransactions.length === 0 && (
             <div className="text-center py-20 text-slate-300 font-black italic text-2xl tracking-widest uppercase">No Records</div>
           )}

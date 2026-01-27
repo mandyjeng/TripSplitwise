@@ -20,36 +20,28 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' }) | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ntdInputRef = useRef<HTMLInputElement>(null);
-  
-  // 用於追蹤當前這筆 pendingRecord 是否已經執行過首次聚焦
   const hasFocusedInitialRef = useRef(false);
 
-  // 當內部 isLoading 改變時，回報給全局
   useEffect(() => {
     setIsAIProcessing(isLoading);
   }, [isLoading, setIsAIProcessing]);
 
-  // 輔助函式：主動收起鍵盤，改善點擊選取人員時的 UX
   const dismissKeyboard = () => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
   };
 
-  // 優化聚焦邏輯：僅在「首次」開啟且來源為圖片時觸發
   useEffect(() => {
     if (!pendingRecord) {
-      // 關閉視窗或清空時，重置聚焦標記
       hasFocusedInitialRef.current = false;
       return;
     }
-
-    // 只有在還沒聚焦過，且這筆紀錄是從圖片產生的時候才自動彈出鍵盤
     if (pendingRecord.source === 'image' && !hasFocusedInitialRef.current) {
       const timer = setTimeout(() => {
         ntdInputRef.current?.focus();
         hasFocusedInitialRef.current = true;
-      }, 400); // 稍微延遲等待 Modal 動畫
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [pendingRecord]);
@@ -90,7 +82,8 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   };
 
   const preparePendingRecord = (data: any, source: 'text' | 'image') => {
-    const currency = data.currency?.toUpperCase() || defaultCurrency || 'CHF';
+    // 修正：優先使用 AI 識別，否則使用目前行程幣別
+    const currency = data.currency?.toUpperCase() || defaultCurrency;
     const amount = Number(data.amount) || 0;
     const payerId = currentUserId || members[0]?.id || ''; 
     const sanitizedDate = (data.date || new Date().toISOString()).split('T')[0];
@@ -126,10 +119,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
   const toggleSplitMember = (memberId: string) => {
     if (!pendingRecord) return;
-    
-    // 點擊人員時主動收回鍵盤，方便看清楚名單
     dismissKeyboard();
-
     const currentSplit = pendingRecord.splitWith || [];
     const newSplit = currentSplit.includes(memberId)
       ? currentSplit.filter(id => id !== memberId)
@@ -259,7 +249,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                     className="w-5 h-5 accent-blue-500" 
                     checked={pendingRecord.isSplit} 
                     onChange={e => {
-                      dismissKeyboard(); // 切換分帳類型時收起鍵盤
+                      dismissKeyboard();
                       const isSplit = e.target.checked;
                       setPendingRecord({
                         ...pendingRecord, 

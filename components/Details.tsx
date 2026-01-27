@@ -6,7 +6,6 @@ import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2 } from 'lu
 import { updateTransactionInSheet, deleteTransactionFromSheet } from '../services/sheets';
 
 interface DetailsProps {
-  /* Use AppState to ensure consistency with the state passed from the main App component */
   state: AppState;
   onDeleteTransaction: (id: string) => void;
   updateState: (updates: any) => void;
@@ -67,10 +66,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       ? currentSplit.filter(id => id !== memberId)
       : [...currentSplit, memberId];
     
-    // 確保至少有一人參與
     if (newSplit.length === 0) return;
 
-    // 邏輯優化：若為多人則設為公帳，若為單人則設為私帳
     const isSplit = newSplit.length > 1;
     let newCategory = editingItem.category;
     
@@ -180,72 +177,78 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               </div>
               
               <div className="space-y-5">
-                {filteredTransactions.filter(t => t.date === date).map(t => (
-                  <div 
-                    key={t.id} 
-                    onClick={() => setEditingItem(t)}
-                    className="bg-white comic-border p-3.5 sm:p-6 rounded-[1.75rem] sm:rounded-[2rem] flex flex-col gap-4 comic-shadow hover:translate-x-1 hover:-translate-y-1 transition-all cursor-pointer relative group"
-                  >
-                    <div className="flex items-start gap-3 sm:gap-4">
-                      <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                        {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 20 })}
-                      </div>
+                {filteredTransactions.filter(t => t.date === date).map(t => {
+                  const displayCurrency = t.currency || state.defaultCurrency;
+                  const shouldShowOriginal = t.originalAmount > 0 || displayCurrency !== 'TWD';
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-base sm:text-lg text-black truncate leading-tight">{t.merchant}</span>
-                            {!t.isSplit ? (
-                              <span className="shrink-0 bg-pink-100 text-pink-700 text-[9px] font-black px-1.5 py-0.5 rounded-md border-2 border-pink-200">個人</span>
-                            ) : (
-                              <span className="shrink-0 bg-blue-100 text-blue-700 text-[9px] font-black px-1.5 py-0.5 rounded-md border-2 border-blue-200">{t.splitWith.length}人</span>
-                            )}
+                  return (
+                    <div 
+                      key={t.id} 
+                      onClick={() => setEditingItem(t)}
+                      className="bg-white comic-border p-3.5 sm:p-6 rounded-[1.75rem] sm:rounded-[2rem] flex flex-col gap-4 comic-shadow hover:translate-x-1 hover:-translate-y-1 transition-all cursor-pointer relative group"
+                    >
+                      <div className="flex items-start gap-3 sm:gap-4">
+                        <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
+                          {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 20 })}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-base sm:text-lg text-black truncate leading-tight">{t.merchant}</span>
+                              {!t.isSplit ? (
+                                <span className="shrink-0 bg-pink-100 text-pink-700 text-[9px] font-black px-1.5 py-0.5 rounded-md border-2 border-pink-200">個人</span>
+                              ) : (
+                                <span className="shrink-0 bg-blue-100 text-blue-700 text-[9px] font-black px-1.5 py-0.5 rounded-md border-2 border-blue-200">{t.splitWith.length}人</span>
+                              )}
+                            </div>
+                            <div className="text-[12px] sm:text-sm font-bold text-slate-700 leading-snug whitespace-pre-line line-clamp-2">{t.item}</div>
                           </div>
-                          {/* 優化列表項目顯示：支援多行並限制高度 */}
-                          <div className="text-[12px] sm:text-sm font-bold text-slate-700 leading-snug whitespace-pre-line line-clamp-2">{t.item}</div>
                         </div>
-                      </div>
 
-                      <div className="text-right shrink-0 ml-1">
-                        <div className="text-[10px] font-bold text-slate-500 italic uppercase mb-0.5">
-                          {t.originalAmount} {t.currency}
-                        </div>
-                        <div className="font-black text-base sm:text-xl text-black leading-none">
-                          <span className="text-[11px] mr-0.5 font-bold">NT$</span>
-                          {Math.round(t.ntdAmount).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t-2 border-slate-100 flex flex-col gap-3">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div className="flex items-center gap-1.5 text-[11px] sm:text-base font-black text-black bg-slate-100 px-2.5 py-1.5 rounded-lg border-2 border-slate-200">
-                          <div className="w-5 h-5 rounded bg-[#F6D32D] comic-border flex items-center justify-center text-black text-[9px] font-black">
-                            {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
+                        <div className="text-right shrink-0 ml-1">
+                          {shouldShowOriginal && (
+                            <div className="text-[10px] font-bold text-slate-500 italic uppercase mb-0.5">
+                              {t.originalAmount} {displayCurrency}
+                            </div>
+                          )}
+                          <div className="font-black text-base sm:text-xl text-black leading-none">
+                            <span className="text-[11px] mr-0.5 font-bold">NT$</span>
+                            {Math.round(t.ntdAmount).toLocaleString()}
                           </div>
-                          <span className="truncate max-w-[50px] sm:max-w-none">{state.members.find(m => m.id === t.payerId)?.name}</span>
                         </div>
-                        <div className="h-4 w-[2px] bg-slate-200 mx-0.5"></div>
-                        <div className="flex flex-wrap gap-1 items-center flex-1 overflow-hidden">
-                          <span className="text-[10px] sm:text-sm font-black text-black shrink-0">分給:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {t.isSplit && t.splitWith.length === state.members.length ? (
-                              <span className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                                全部
-                              </span>
-                            ) : (
-                              t.splitWith.map(mid => (
-                                <span key={mid} className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                                  {state.members.find(m => m.id === mid)?.name}
+                      </div>
+
+                      <div className="pt-3 border-t-2 border-slate-100 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="flex items-center gap-1.5 text-[11px] sm:text-base font-black text-black bg-slate-100 px-2.5 py-1.5 rounded-lg border-2 border-slate-200">
+                            <div className="w-5 h-5 rounded bg-[#F6D32D] comic-border flex items-center justify-center text-black text-[9px] font-black">
+                              {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="truncate max-w-[50px] sm:max-w-none">{state.members.find(m => m.id === t.payerId)?.name}</span>
+                          </div>
+                          <div className="h-4 w-[2px] bg-slate-200 mx-0.5"></div>
+                          <div className="flex flex-wrap gap-1 items-center flex-1 overflow-hidden">
+                            <span className="text-[10px] sm:text-sm font-black text-black shrink-0">分給:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {t.isSplit && t.splitWith.length === state.members.length ? (
+                                <span className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                                  全部
                                 </span>
-                              ))
-                            )}
+                              ) : (
+                                t.splitWith.map(mid => (
+                                  <span key={mid} className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                                    {state.members.find(m => m.id === mid)?.name}
+                                  </span>
+                                ))
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))
@@ -269,7 +272,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             </div>
             
             <div className="space-y-3 max-h-[70vh] overflow-y-auto no-scrollbar pb-3">
-              {/* 基本資訊：日期與店家 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="bg-slate-50 p-2 rounded-xl border-[3px] border-black">
                   <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">日期</label>
@@ -290,7 +292,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              {/* 金額區塊 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="bg-[#FFFDF0] p-2 rounded-xl border-[3px] border-[#E64A4A]">
                   <label className="text-[9px] font-black text-[#E64A4A] mb-0.5 block uppercase tracking-tighter">台幣金額</label>
@@ -302,7 +303,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   />
                 </div>
                 <div className="bg-slate-50 p-2 rounded-xl border-[3px] border-black">
-                  <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">外幣 ({editingItem.currency})</label>
+                  <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">外幣 ({editingItem.currency || state.defaultCurrency})</label>
                   <input 
                     type="number"
                     className="w-full bg-transparent font-black text-base sm:text-xl outline-none p-0 text-slate-950"
@@ -312,7 +313,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              {/* 分類與付款人 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="bg-slate-50 p-2 rounded-xl border-[3px] border-black">
                   <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">分類</label>
@@ -336,7 +336,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              {/* 優化後的參與分帳人員 */}
               <div className="bg-slate-50 p-2.5 rounded-[1.25rem] border-[3px] border-black">
                 <label className="text-[9px] font-black text-slate-400 mb-2 block uppercase tracking-widest leading-none">參與分帳人員</label>
                 <div className="flex flex-nowrap gap-1 overflow-x-auto no-scrollbar pt-1">
@@ -356,7 +355,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              {/* 項目內容 */}
               <div className="bg-slate-50 p-3 rounded-[1.25rem] border-[3px] border-black">
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">項目內容 (收據清單)</label>
