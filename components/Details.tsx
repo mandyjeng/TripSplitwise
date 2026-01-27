@@ -1,27 +1,41 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Transaction, Member, Category, AppState } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
 import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2 } from 'lucide-react';
-import { updateTransactionInSheet, deleteTransactionFromSheet } from '../services/sheets';
+import { updateTransactionInSheet } from '../services/sheets';
 
 interface DetailsProps {
   state: AppState;
-  onDeleteTransaction: (id: string) => void;
+  onDeleteTransaction: (id: string) => Promise<void>;
   updateState: (updates: any) => void;
   onSync: () => void;
   isSyncing: boolean;
+  initialEditId?: string | null;
+  onClearInitialEdit?: () => void;
 }
 
-const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateState, onSync, isSyncing }) => {
+const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateState, onSync, isSyncing, initialEditId, onClearInitialEdit }) => {
   const [filterCategory, setFilterCategory] = useState<Category | '全部'>('全部');
   const [filterMemberId, setFilterMemberId] = useState<string | '全部'>('全部');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingItem, setEditingItem] = useState<Transaction | null>(null);
 
+  // 支援從其他分頁跳轉過來直接開啟編輯
+  useEffect(() => {
+    if (initialEditId) {
+      const target = state.transactions.find(t => t.id === initialEditId);
+      if (target) {
+        setEditingItem(target);
+      }
+      onClearInitialEdit?.();
+    }
+  }, [initialEditId, state.transactions, onClearInitialEdit]);
+
   const handleSaveEdit = async () => {
-    if (!editingItem || isSaving) return;
+    if (!editingItem || isSaving || isDeleting) return;
     setIsSaving(true);
     try {
       const newList = state.transactions.map(t => t.id === editingItem.id ? { ...editingItem } : t);
@@ -40,12 +54,17 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
   };
 
   const handleDelete = async (t: Transaction) => {
-    if (!confirm(`確定要刪除「${t.merchant}」嗎？`)) return;
-    onDeleteTransaction(t.id);
-    if (state.sheetUrl && t.rowIndex !== undefined) {
-      await deleteTransactionFromSheet(state.sheetUrl, t.rowIndex);
+    if (!confirm(`確定要刪除「${t.merchant}」嗎？`) || isDeleting || isSaving) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteTransaction(t.id);
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('刪除失敗');
+    } finally {
+      setIsDeleting(false);
     }
-    setEditingItem(null);
   };
 
   const handleAmountChange = (val: number) => {
@@ -99,6 +118,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const dates = Array.from(new Set(filteredTransactions.map(t => t.date)));
+
+  const isAnyActionRunning = isSaving || isDeleting;
 
   return (
     <div className="space-y-6 pb-24">
@@ -266,7 +287,11 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               <h3 className="text-lg sm:text-2xl font-black italic flex items-center gap-2 text-slate-900">
                 <Clock className="text-[#F6D32D]" size={20} strokeWidth={3} /> 修改明細
               </h3>
-              <button onClick={() => setEditingItem(null)} className="p-2.5 bg-slate-50 rounded-full text-slate-500 hover:bg-slate-100 transition-colors">
+              <button 
+                disabled={isAnyActionRunning}
+                onClick={() => setEditingItem(null)} 
+                className="p-2.5 bg-slate-50 rounded-full text-slate-500 hover:bg-slate-100 transition-colors disabled:opacity-30"
+              >
                 <X size={22} strokeWidth={3} />
               </button>
             </div>
@@ -277,7 +302,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">日期</label>
                   <input 
                     type="date"
-                    className="w-full bg-transparent font-black text-[13px] sm:text-base outline-none p-0 text-slate-950"
+                    disabled={isAnyActionRunning}
+                    className="w-full bg-transparent font-black text-[13px] sm:text-base outline-none p-0 text-slate-950 disabled:opacity-50"
                     value={editingItem.date}
                     onChange={e => setEditingItem({...editingItem, date: e.target.value})}
                   />
@@ -285,7 +311,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 <div className="bg-slate-50 p-2 rounded-xl border-[3px] border-black">
                   <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">店家</label>
                   <input 
-                    className="w-full bg-transparent font-black text-[13px] sm:text-base outline-none p-0 text-slate-950"
+                    disabled={isAnyActionRunning}
+                    className="w-full bg-transparent font-black text-[13px] sm:text-base outline-none p-0 text-slate-950 disabled:opacity-50"
                     value={editingItem.merchant}
                     onChange={e => setEditingItem({...editingItem, merchant: e.target.value})}
                   />
@@ -297,7 +324,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   <label className="text-[9px] font-black text-[#E64A4A] mb-0.5 block uppercase tracking-tighter">台幣金額</label>
                   <input 
                     type="number"
-                    className="w-full bg-transparent font-black text-base sm:text-xl outline-none p-0 text-slate-950"
+                    disabled={isAnyActionRunning}
+                    className="w-full bg-transparent font-black text-base sm:text-xl outline-none p-0 text-slate-950 disabled:opacity-50"
                     value={editingItem.ntdAmount === 0 ? '' : editingItem.ntdAmount}
                     onChange={e => setEditingItem({...editingItem, ntdAmount: e.target.value ? Number(e.target.value) : 0})}
                   />
@@ -306,7 +334,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">外幣 ({editingItem.currency || state.defaultCurrency})</label>
                   <input 
                     type="number"
-                    className="w-full bg-transparent font-black text-base sm:text-xl outline-none p-0 text-slate-950"
+                    disabled={isAnyActionRunning}
+                    className="w-full bg-transparent font-black text-base sm:text-xl outline-none p-0 text-slate-950 disabled:opacity-50"
                     value={editingItem.originalAmount === 0 ? '' : editingItem.originalAmount}
                     onChange={e => handleAmountChange(e.target.value ? Number(e.target.value) : 0)}
                   />
@@ -317,7 +346,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 <div className="bg-slate-50 p-2 rounded-xl border-[3px] border-black">
                   <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">分類</label>
                   <select 
-                    className="w-full bg-transparent font-black text-[13px] sm:text-base appearance-none outline-none p-0 text-slate-950"
+                    disabled={isAnyActionRunning}
+                    className="w-full bg-transparent font-black text-[13px] sm:text-base appearance-none outline-none p-0 text-slate-950 disabled:opacity-50"
                     value={editingItem.category}
                     onChange={e => setEditingItem({...editingItem, category: e.target.value as Category})}
                   >
@@ -327,7 +357,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 <div className="bg-slate-50 p-2 rounded-xl border-[3px] border-black">
                   <label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">付款人</label>
                   <select 
-                    className="w-full bg-transparent font-black text-[13px] sm:text-base appearance-none outline-none p-0 text-slate-950"
+                    disabled={isAnyActionRunning}
+                    className="w-full bg-transparent font-black text-[13px] sm:text-base appearance-none outline-none p-0 text-slate-950 disabled:opacity-50"
                     value={editingItem.payerId}
                     onChange={e => setEditingItem({...editingItem, payerId: e.target.value})}
                   >
@@ -342,12 +373,13 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   {state.members.map(m => (
                     <button
                       key={m.id}
+                      disabled={isAnyActionRunning}
                       onClick={() => toggleSplitMember(m.id)}
                       className={`flex-1 min-w-0 py-1.5 px-1 rounded-lg text-[10px] font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
                         editingItem.splitWith?.includes(m.id) 
                           ? 'bg-[#F6D32D] text-black border-black shadow-sm' 
                           : 'bg-white text-slate-300 border-slate-100'
-                      }`}
+                      } disabled:opacity-50`}
                     >
                       {m.name}
                     </button>
@@ -363,7 +395,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   </span>
                 </div>
                 <textarea 
-                  className="w-full bg-transparent font-bold text-[13px] sm:text-base min-h-[120px] sm:min-h-[190px] outline-none leading-relaxed p-0 text-slate-950 resize-none whitespace-pre-wrap"
+                  disabled={isAnyActionRunning}
+                  className="w-full bg-transparent font-bold text-[13px] sm:text-base min-h-[120px] sm:min-h-[190px] outline-none leading-relaxed p-0 text-slate-950 resize-none whitespace-pre-wrap disabled:opacity-50"
                   placeholder="輸入收據品項詳情..."
                   value={editingItem.item}
                   onChange={e => setEditingItem({...editingItem, item: e.target.value})}
@@ -373,19 +406,22 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
 
             <div className="flex gap-3 mt-3">
               <button 
-                disabled={isSaving}
+                disabled={isAnyActionRunning}
                 onClick={() => handleDelete(editingItem)}
-                className="p-3 bg-white border-[3px] border-red-200 text-red-500 rounded-xl active:scale-95 transition-all shadow-sm"
+                className={`p-3 rounded-xl active:scale-95 transition-all shadow-sm flex items-center gap-2 border-[3px] ${
+                  isDeleting ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-white border-red-200 text-red-500'
+                }`}
               >
-                <Trash2 size={22} strokeWidth={3} />
+                {isDeleting ? <Loader2 size={22} strokeWidth={3} className="animate-spin" /> : <Trash2 size={22} strokeWidth={3} />}
+                {isDeleting && <span className="font-black text-sm">處理中</span>}
               </button>
               <button 
-                disabled={isSaving}
+                disabled={isAnyActionRunning}
                 onClick={handleSaveEdit}
                 className="flex-1 py-3 bg-black text-white rounded-xl font-black comic-shadow-sm flex items-center justify-center gap-2 active:translate-y-1 transition-all disabled:opacity-50 text-base"
               >
                 {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} strokeWidth={3} />}
-                {isSaving ? '儲存中' : '儲存修改'}
+                {isSaving ? '處理中' : '儲存修改'}
               </button>
             </div>
           </div>
