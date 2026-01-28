@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, Transaction, Category, Member, Ledger } from './types';
 import { TABS, MASTER_GAS_URL } from './constants';
 import Overview from './components/Overview';
@@ -10,11 +10,15 @@ import { Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isSyncing, setIsSyncing] = useState(false); // 用於初始化與切換帳本
-  const [isRefreshing, setIsRefreshing] = useState(false); // 用於手動同步
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [initialEditId, setInitialEditId] = useState<string | null>(null);
   
+  // 智慧導覽列隱藏邏輯
+  const [showNav, setShowNav] = useState(true);
+  const lastScrollY = useRef(0);
+
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('trip_split_master_state_v2');
     if (saved) return JSON.parse(saved);
@@ -98,6 +102,22 @@ const App: React.FC = () => {
 
   useEffect(() => { loadManagement(); }, []);
 
+  // 監聽捲動事件來隱藏/顯示導覽列
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setShowNav(false); // 向下捲動 -> 隱藏
+      } else {
+        setShowNav(true); // 向上捲動 -> 顯示
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('trip_split_master_state_v2', JSON.stringify(state));
     if (state.activeLedgerId) {
@@ -132,6 +152,7 @@ const App: React.FC = () => {
     updateState({ transactions: [newTransaction, ...state.transactions] });
     saveToGoogleSheet(activeLedger.url, newTransaction, state.members);
     setActiveTab('overview');
+    setShowNav(true);
   };
 
   const onDeleteTransaction = async (id: string) => {
@@ -150,19 +171,18 @@ const App: React.FC = () => {
   const onEditFromOverview = (id: string) => {
     setInitialEditId(id);
     setActiveTab('details');
+    setShowNav(true);
   };
 
-  // 跳轉至設定頁面的使用者選擇區塊
   const handleJumpToUserSelection = () => {
     if (isSyncing || isRefreshing || isAIProcessing) return;
     
     setActiveTab('settings');
-    // 使用 setTimeout 確保 Tab 切換且 DOM 渲染後再執行滾動
+    setShowNav(true);
     setTimeout(() => {
       const element = document.getElementById('user-selection-section');
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // 加上一點點震動效果提示定位成功 (如果瀏覽器支援)
         if ('vibrate' in navigator) navigator.vibrate(50);
       }
     }, 150);
@@ -171,7 +191,6 @@ const App: React.FC = () => {
   const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
   const isGlobalLocked = isSyncing || isAIProcessing || isRefreshing;
   
-  // 動態決定載入文字
   const getLoadingMessage = () => {
     if (isAIProcessing) return "讓AI想一想...";
     if (isRefreshing) return "帳本同步中...";
@@ -232,11 +251,27 @@ const App: React.FC = () => {
         {activeTab === 'settings' && <Settings state={state} updateState={updateState} onReloadManagement={loadManagement} onSwitchLedger={(l) => syncLedgerData(l, false)} />}
       </main>
 
-      <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-white border-[3px] border-black rounded-[2.5rem] p-2 flex justify-between items-center z-40 shadow-2xl transition-all duration-300 ${isGlobalLocked ? 'translate-y-[200%] opacity-0' : 'translate-y-0 opacity-100'}`}>
+      {/* 優化後的導覽列：膠囊化設計 + 智慧隱藏 */}
+      <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-white border-[3px] border-black rounded-full p-1.5 flex justify-between items-center z-40 transition-all duration-500 ease-in-out ${
+        (isGlobalLocked || !showNav) 
+          ? 'translate-y-[200%] opacity-0 scale-90' 
+          : 'translate-y-0 opacity-100 scale-100 comic-shadow'
+      }`}>
         {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-4 rounded-[2rem] ${activeTab === tab.id ? 'bg-black text-white' : 'text-slate-300'}`}>
-            {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 24 })}
-            <span className="text-xs font-black uppercase tracking-widest">{tab.label}</span>
+          <button 
+            key={tab.id} 
+            onClick={() => {
+              setActiveTab(tab.id);
+              setShowNav(true);
+            }} 
+            className={`flex flex-col items-center gap-1 transition-all flex-1 py-2.5 rounded-full ${
+              activeTab === tab.id 
+                ? 'bg-black text-white' 
+                : 'text-slate-300 hover:text-slate-400'
+            }`}
+          >
+            {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 20 })}
+            <span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
           </button>
         ))}
       </nav>
