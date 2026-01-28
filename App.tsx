@@ -10,7 +10,8 @@ import { Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false); // 用於初始化與切換帳本
+  const [isRefreshing, setIsRefreshing] = useState(false); // 用於手動同步
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [initialEditId, setInitialEditId] = useState<string | null>(null);
   
@@ -33,8 +34,10 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, ...updates }));
   };
 
-  const syncLedgerData = useCallback(async (ledger: Ledger) => {
-    setIsSyncing(true);
+  const syncLedgerData = useCallback(async (ledger: Ledger, isManual: boolean = false) => {
+    if (isManual) setIsRefreshing(true);
+    else setIsSyncing(true);
+    
     try {
       const records = await fetchTransactionsFromSheet(ledger.url);
       let ledgerMembers: Member[] = ledger.members.map(name => ({ id: name, name }));
@@ -70,6 +73,7 @@ const App: React.FC = () => {
       console.error(e);
       alert('子帳本資料載入失敗');
     } finally {
+      setIsRefreshing(false);
       setIsSyncing(false);
     }
   }, [state.currentUser]);
@@ -82,7 +86,7 @@ const App: React.FC = () => {
         const savedId = localStorage.getItem('last_active_ledger_id');
         const active = ledgers.find(l => l.id === savedId) || ledgers[0];
         updateState({ ledgers });
-        await syncLedgerData(active);
+        await syncLedgerData(active, false);
       }
     } catch (e) {
       console.error(e);
@@ -149,7 +153,14 @@ const App: React.FC = () => {
   };
 
   const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
-  const isGlobalLocked = isSyncing || isAIProcessing;
+  const isGlobalLocked = isSyncing || isAIProcessing || isRefreshing;
+  
+  // 動態決定載入文字
+  const getLoadingMessage = () => {
+    if (isAIProcessing) return "讓AI想一想...";
+    if (isRefreshing) return "帳本同步中...";
+    return "切換帳本中...";
+  };
 
   return (
     <div className={`max-w-md mx-auto min-h-screen flex flex-col relative overflow-x-hidden theme-${state.theme || 'comic'}`}>
@@ -157,7 +168,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 comic-shadow flex flex-col items-center gap-5">
             <Sparkles size={48} className="text-[#F6D32D] animate-pulse" />
-            <div className="text-center font-black">圖片資料辨識AI辨識中...</div>
+            <div className="text-center font-black">{getLoadingMessage()}</div>
           </div>
         </div>
       )}
@@ -192,13 +203,13 @@ const App: React.FC = () => {
             state={state} 
             onDeleteTransaction={onDeleteTransaction} 
             updateState={updateState} 
-            onSync={() => activeLedger && syncLedgerData(activeLedger)} 
-            isSyncing={isSyncing} 
+            onSync={() => activeLedger && syncLedgerData(activeLedger, true)} 
+            isSyncing={isSyncing || isRefreshing} 
             initialEditId={initialEditId}
             onClearInitialEdit={() => setInitialEditId(null)}
           />
         )}
-        {activeTab === 'settings' && <Settings state={state} updateState={updateState} onReloadManagement={loadManagement} onSwitchLedger={syncLedgerData} />}
+        {activeTab === 'settings' && <Settings state={state} updateState={updateState} onReloadManagement={loadManagement} onSwitchLedger={(l) => syncLedgerData(l, false)} />}
       </main>
 
       <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-white border-[3px] border-black rounded-[2.5rem] p-2 flex justify-between items-center z-40 shadow-2xl transition-all duration-300 ${isGlobalLocked ? 'translate-y-[200%] opacity-0' : 'translate-y-0 opacity-100'}`}>
