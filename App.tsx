@@ -152,6 +152,22 @@ const App: React.FC = () => {
     setActiveTab('details');
   };
 
+  // 跳轉至設定頁面的使用者選擇區塊
+  const handleJumpToUserSelection = () => {
+    if (isSyncing || isRefreshing || isAIProcessing) return;
+    
+    setActiveTab('settings');
+    // 使用 setTimeout 確保 Tab 切換且 DOM 渲染後再執行滾動
+    setTimeout(() => {
+      const element = document.getElementById('user-selection-section');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 加上一點點震動效果提示定位成功 (如果瀏覽器支援)
+        if ('vibrate' in navigator) navigator.vibrate(50);
+      }
+    }, 150);
+  };
+
   const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
   const isGlobalLocked = isSyncing || isAIProcessing || isRefreshing;
   
@@ -183,9 +199,13 @@ const App: React.FC = () => {
                TripSplit AI 記帳助手
             </p>
           </div>
-          <div className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black comic-shadow-sm truncate max-w-[120px]">
+          <button 
+            onClick={handleJumpToUserSelection}
+            disabled={isGlobalLocked}
+            className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black comic-shadow-sm truncate max-w-[120px] active:translate-y-1 active:shadow-none transition-all cursor-pointer hover:bg-yellow-300 disabled:opacity-50"
+          >
             {state.currentUser || '...'}
-          </div>
+          </button>
         </div>
       </header>
 

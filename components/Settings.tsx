@@ -102,8 +102,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
         </div>
       </section>
 
-      {/* 使用者切換 */}
-      <section className="bg-white comic-border rounded-[2.5rem] p-6 sm:p-8 comic-shadow">
+      {/* 使用者切換 - 增加 ID 以利跳轉定位 */}
+      <section id="user-selection-section" className="bg-white comic-border rounded-[2.5rem] p-6 sm:p-8 comic-shadow scroll-mt-24 transition-all duration-500">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
             <UserCheck size={20} />
