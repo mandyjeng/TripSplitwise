@@ -82,7 +82,6 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   };
 
   const preparePendingRecord = (data: any, source: 'text' | 'image') => {
-    // 修正：優先使用 AI 識別，否則使用目前行程幣別
     const currency = data.currency?.toUpperCase() || defaultCurrency;
     const amount = Number(data.amount) || 0;
     const payerId = currentUserId || members[0]?.id || ''; 
@@ -154,12 +153,12 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-3 items-center">
-        <div className="flex-1 relative">
+      <div className="flex gap-4 items-center h-16 sm:h-18">
+        <div className="flex-1 relative group h-full">
           <input 
             type="text"
             placeholder="Coop 咖啡3 早餐2"
-            className="w-full bg-white comic-border rounded-2xl py-4 pl-5 pr-14 text-lg font-bold shadow-sm focus:outline-none"
+            className="w-full h-full bg-white comic-border rounded-full pl-6 pr-14 text-lg font-black italic tracking-tight shadow-sm focus:outline-none transition-all group-hover:bg-slate-50 placeholder:text-slate-300 placeholder:italic placeholder:font-bold placeholder:text-[13px] placeholder:tracking-normal"
             value={inputText}
             onChange={e => setInputText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
@@ -167,18 +166,18 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
           <button 
             onClick={handleTextSubmit}
             disabled={isLoading || !inputText.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 text-black hover:bg-slate-50 rounded-xl transition-all disabled:opacity-30"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-black/20 hover:text-black group-focus-within:text-black transition-colors disabled:opacity-5"
           >
-            <Send size={24} strokeWidth={3} />
+            <Send size={22} strokeWidth={4} />
           </button>
         </div>
         
         <button 
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
-          className="bg-black text-white w-14 h-14 rounded-2xl comic-shadow-sm flex items-center justify-center transition-all active:translate-y-1 disabled:opacity-50 shrink-0"
+          className="bg-[#F6D32D] text-black w-16 h-16 sm:w-18 sm:h-18 rounded-full border-[3px] border-black comic-shadow-sm flex items-center justify-center transition-all active:translate-y-1 active:shadow-none hover:bg-yellow-300 disabled:opacity-50 shrink-0 aspect-square"
         >
-          <Camera size={28} />
+          <Camera size={30} strokeWidth={3} />
         </button>
         <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageUpload} />
       </div>
@@ -292,7 +291,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               <button onClick={() => setPendingRecord(null)} className="flex-1 py-4 bg-white border-[3px] border-black rounded-2xl font-black text-base active:scale-95 transition-all">
                 取消
               </button>
-              <button onClick={confirmRecord} className="flex-1 py-4 bg-black text-white rounded-2xl font-black text-base comic-shadow-sm active:translate-y-1 transition-all">
+              <button onClick={confirmRecord} className="flex-1 py-4 bg-black text-white rounded-2xl font-black text-base comic-shadow flex items-center justify-center gap-2 active:translate-y-1 transition-all">
                 確認送出
               </button>
             </div>

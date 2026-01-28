@@ -3,7 +3,7 @@ import React from 'react';
 import { Transaction, Member, AppState } from '../types';
 import AIInput from './AIInput';
 import { CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
-import { TrendingUp, Wallet, ShoppingBag, Users, ShieldAlert, ArrowRightLeft } from 'lucide-react';
+import { TrendingUp, Wallet, ShoppingBag, Users, ShieldAlert, ArrowRightLeft, Sparkles } from 'lucide-react';
 
 interface OverviewProps {
   state: AppState;
@@ -52,74 +52,82 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Summary Cards */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-[#E64A4A] p-3.5 sm:p-5 rounded-[2rem] sm:rounded-[2.5rem] text-white comic-border comic-shadow-sm">
-          <div className="flex items-center gap-1.5 mb-2 opacity-90 font-bold">
+      {/* 1. AI 智能記帳 - 提升為頂部主視覺 (Hero Section) */}
+      <section className="relative">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center text-[#F6D32D] shadow-lg">
+              <Sparkles size={28} fill="currentColor" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-black leading-none italic tracking-tighter">AI 智能記帳</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Smart AI Assistant</p>
+            </div>
+          </div>
+          <div className="bg-white border-[3px] border-black px-4 py-2 rounded-2xl text-[11px] font-black comic-shadow-sm flex items-center gap-2 group hover:scale-105 transition-transform">
+            <ArrowRightLeft size={14} className="text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
+            <span className="text-slate-900">1 {state.defaultCurrency} = {state.exchangeRate}</span>
+          </div>
+        </div>
+        
+        <div className="bg-[#FFFDF0] border-[4px] border-black border-dashed rounded-[3rem] p-3.5 sm:p-5 comic-shadow">
+          <AIInput 
+            onAddTransaction={onAddTransaction} 
+            members={state.members} 
+            exchangeRate={state.exchangeRate} 
+            defaultCurrency={state.defaultCurrency}
+            setIsAIProcessing={setIsAIProcessing} 
+            currentUserId={state.currentUser}
+          />
+        </div>
+      </section>
+
+      {/* 2. 支出概況統計 - 緊隨 AI 區塊 */}
+      <section className="grid grid-cols-2 gap-4">
+        <div className="bg-[#E64A4A] p-5 rounded-[2.5rem] text-white border-[3px] border-black comic-shadow-sm">
+          <div className="flex items-center gap-2 mb-2 opacity-80">
             <TrendingUp size={16} />
-            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider">總支出</span>
+            <span className="text-[11px] font-black uppercase tracking-widest">總支出</span>
           </div>
-          <div className="text-xl sm:text-2xl font-black leading-none italic">$-{Math.round(totalExpense).toLocaleString()}</div>
+          <div className="text-3xl font-black leading-none italic">$-{Math.round(totalExpense).toLocaleString()}</div>
         </div>
-        <div className="bg-white p-3.5 sm:p-5 rounded-[2rem] sm:rounded-[2.5rem] comic-border comic-shadow-sm text-black">
-          <div className="flex items-center gap-1.5 mb-2 text-slate-500 font-bold">
+        <div className="bg-white p-5 rounded-[2.5rem] border-[3px] border-black comic-shadow-sm text-black">
+          <div className="flex items-center gap-2 mb-2">
             <ShoppingBag size={16} className="text-[#1FA67A]" />
-            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider">我的花費</span>
+            <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">我的花費</span>
           </div>
-          <div className="text-lg sm:text-xl font-black leading-none">NT$ {Math.round(myTotalCost).toLocaleString()}</div>
-          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 mt-1 uppercase">含分擔與個人</p>
+          <div className="text-2xl font-black leading-none">NT$ {Math.round(myTotalCost).toLocaleString()}</div>
+          <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-tight">含分擔與個人消費</p>
         </div>
       </section>
 
-      {/* AI Area */}
+      {/* 3. 結算與歸屬 */}
       <section>
-        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-          <h2 className="text-xl sm:text-2xl font-black text-black flex items-center gap-2">
-            <div className="w-2.5 h-8 sm:w-3 sm:h-9 bg-[#F6D32D] comic-border"></div>
-            AI 智能記帳
-          </h2>
-          <div className="bg-white comic-border px-2 py-1 rounded-lg text-[10px] sm:text-xs font-black comic-shadow-sm flex items-center gap-1 whitespace-nowrap">
-            <ArrowRightLeft size={12} className="text-slate-400" />
-            1 {state.defaultCurrency} = {state.exchangeRate}
-          </div>
-        </div>
-        <AIInput 
-          onAddTransaction={onAddTransaction} 
-          members={state.members} 
-          exchangeRate={state.exchangeRate} 
-          defaultCurrency={state.defaultCurrency}
-          setIsAIProcessing={setIsAIProcessing} 
-          currentUserId={state.currentUser}
-        />
-      </section>
-
-      {/* Settlement Section */}
-      <section>
-        <h2 className="text-xl sm:text-2xl font-black text-black mb-5 flex items-center gap-2">
-          <div className="w-2.5 h-8 sm:w-3 sm:h-9 bg-[#1FA67A] comic-border"></div>
+        <h2 className="text-2xl font-black text-black mb-6 flex items-center gap-3">
+          <div className="w-3 h-10 bg-[#1FA67A] border-[3px] border-black"></div>
           結算與歸屬
         </h2>
-        <div className="bg-white comic-border rounded-[2rem] sm:rounded-[3rem] p-4 sm:p-7 comic-shadow">
-          <div className="space-y-6 sm:space-y-9">
+        <div className="bg-white border-[3px] border-black rounded-[3rem] p-7 sm:p-9 comic-shadow">
+          <div className="space-y-8">
             {state.members.map(m => (
-              <div key={m.id} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-                  <div className="w-10 h-10 sm:w-16 sm:h-16 bg-[#F6D32D] comic-border rounded-xl sm:rounded-2xl flex items-center justify-center text-black font-black text-lg sm:text-2xl shrink-0">
+              <div key={m.id} className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-5 min-w-0">
+                  <div className="w-14 h-14 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center text-black font-black text-2xl shrink-0 comic-shadow-sm">
                     {m.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <div className="font-black text-lg sm:text-2xl text-slate-950 leading-tight mb-0.5 truncate">{m.name}</div>
-                    <div className="flex items-center gap-1 text-[10px] sm:text-base font-bold text-slate-500 truncate">
-                      <Wallet size={12} className="shrink-0" />
+                    <div className="font-black text-xl text-slate-950 leading-tight mb-1 truncate">{m.name}</div>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 truncate">
+                      <Wallet size={14} className="shrink-0" />
                       <span>NT$ {Math.round(consumptions[m.id]).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className={`font-black text-xl sm:text-3xl leading-none ${balances[m.id] > 0 ? 'text-[#1FA67A]' : balances[m.id] < 0 ? 'text-[#E64A4A]' : 'text-slate-300'}`}>
+                  <div className={`font-black text-2xl leading-none ${balances[m.id] > 0 ? 'text-[#1FA67A]' : balances[m.id] < 0 ? 'text-[#E64A4A]' : 'text-slate-300'}`}>
                     {balances[m.id] > 0 ? '+' : ''}{Math.round(balances[m.id]).toLocaleString()}
                   </div>
-                  <div className="text-[9px] sm:text-sm font-black text-slate-400 uppercase mt-1">結算餘額</div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase mt-2 tracking-widest">結算餘額</div>
                 </div>
               </div>
             ))}
@@ -127,16 +135,16 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         </div>
       </section>
 
-      {/* Recent Activity */}
+      {/* 4. 最新動態 */}
       <section>
-        <div className="flex justify-between items-end mb-4">
-          <h2 className="text-xl sm:text-2xl font-black text-black flex items-center gap-2">
-            <div className="w-2.5 h-8 sm:w-3 sm:h-9 bg-slate-400 comic-border"></div>
-            最新動態
+        <div className="flex justify-between items-end mb-5">
+          <h2 className="text-2xl font-black text-black flex items-center gap-3">
+            <div className="w-3 h-10 bg-slate-400 border-[3px] border-black"></div>
+            最近動態
           </h2>
-          <span className="text-xs sm:text-sm font-bold text-slate-400 italic">僅顯示 3 筆</span>
+          <span className="text-[11px] font-bold text-slate-400 italic">Latest 3 records</span>
         </div>
-        <div className="space-y-5">
+        <div className="space-y-6">
           {recentTransactions.map(t => {
             const displayCurrency = t.currency || state.defaultCurrency;
             const hasOriginalAmount = t.originalAmount > 0;
@@ -147,71 +155,62 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
               <div 
                 key={t.id} 
                 onClick={() => onEditTransaction(t.id)}
-                className="bg-white comic-border p-4 sm:p-7 rounded-[2rem] flex flex-col gap-4 sm:gap-6 comic-shadow transition-all relative group overflow-hidden cursor-pointer active:scale-[0.98]"
+                className="bg-white border-[3px] border-black p-6 rounded-[2.5rem] flex flex-col gap-6 comic-shadow transition-all relative group overflow-hidden cursor-pointer active:scale-[0.98]"
               >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                    {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 20 })}
+                <div className="flex items-start gap-5">
+                  <div className={`w-14 h-14 rounded-2xl border-[3px] border-black flex items-center justify-center shrink-0 mt-0.5 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
+                    {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 24 })}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-base sm:text-lg text-black truncate leading-tight">{t.merchant}</span>
+                        <span className="font-black text-lg text-black truncate leading-tight">{t.merchant}</span>
                       </div>
-                      <div className="text-[12px] sm:text-sm font-bold text-slate-700 leading-snug whitespace-pre-line line-clamp-2">{t.item}</div>
+                      <div className="text-sm font-bold text-slate-700 leading-relaxed whitespace-pre-line line-clamp-2">{t.item}</div>
                     </div>
                   </div>
 
                   <div className="text-right shrink-0 ml-1">
                     {shouldShowOriginal && (
-                      <div className="text-[10px] font-bold text-slate-500 italic uppercase mb-0.5">
+                      <div className="text-[11px] font-bold text-slate-500 italic uppercase mb-1">
                         {t.originalAmount} {displayCurrency}
                       </div>
                     )}
-                    <div className="font-black text-lg sm:text-xl text-black leading-none">
-                      <span className="text-[12px] mr-0.5 font-bold">NT$</span>
+                    <div className="font-black text-xl text-black leading-none">
+                      <span className="text-xs mr-1 font-bold">NT$</span>
                       {Math.round(t.ntdAmount).toLocaleString()}
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t-2 border-slate-100 flex flex-col gap-3">
-                  <div className="flex items-start gap-2.5">
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <div className="flex items-center gap-2 text-[12px] sm:text-base font-black text-black bg-slate-100 px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl border-2 border-slate-200">
-                        <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-[#F6D32D] comic-border flex items-center justify-center text-black text-[9px] sm:text-[11px] font-black shrink-0">
-                          {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="whitespace-nowrap">{state.members.find(m => m.id === t.payerId)?.name}</span>
+                <div className="pt-4 border-t-2 border-slate-100 flex items-center gap-3">
+                    <div className="flex items-center gap-2.5 text-xs font-black text-black bg-slate-100 px-3.5 py-2 rounded-xl border-2 border-slate-200">
+                      <div className="w-6 h-6 rounded-lg bg-[#F6D32D] border-2 border-black flex items-center justify-center text-black text-[10px] font-black shrink-0">
+                        {state.members.find(m => m.id === t.payerId)?.name.charAt(0).toUpperCase()}
                       </div>
+                      <span className="whitespace-nowrap">{state.members.find(m => m.id === t.payerId)?.name}</span>
                     </div>
-
-                    <div className="h-7 w-[2px] bg-slate-200 mx-0.5 self-center"></div>
-                    
-                    <div className="flex flex-wrap gap-1 items-center flex-1 overflow-hidden pt-0.5">
-                      <span className="text-[9px] sm:text-sm font-black text-black shrink-0">分給:</span>
-                      <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5 items-center flex-1 overflow-hidden pt-0.5">
+                      <span className="text-[10px] font-black text-slate-300 shrink-0 uppercase tracking-widest">To:</span>
+                      <div className="flex flex-wrap gap-1.5">
                         {t.isSplit && t.splitWith.length === state.members.length ? (
-                          <span className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 sm:px-3 py-0.5 rounded-md sm:rounded-lg whitespace-nowrap">
-                            全部
-                          </span>
+                          <span className="text-[10px] font-black text-slate-500 bg-white border-2 border-slate-200 px-2.5 py-1 rounded-lg whitespace-nowrap">全部</span>
                         ) : (
                           t.splitWith.map(mid => (
-                            <span key={mid} className="text-[9px] sm:text-sm font-black text-black bg-white border-2 border-slate-300 px-1.5 sm:px-3 py-0.5 rounded-md sm:rounded-lg whitespace-nowrap">
+                            <span key={mid} className="text-[10px] font-black text-slate-500 bg-white border-2 border-slate-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
                               {state.members.find(m => m.id === mid)?.name}
                             </span>
                           ))
                         )}
                       </div>
                     </div>
-                  </div>
                 </div>
               </div>
             );
           })}
           {recentTransactions.length === 0 && (
-            <div className="text-center py-20 text-slate-300 font-black italic text-2xl tracking-widest uppercase">No Records</div>
+            <div className="text-center py-20 text-slate-200 font-black italic text-2xl tracking-widest uppercase opacity-30">No Records Found</div>
           )}
         </div>
       </section>
