@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Send, Loader2, Check, Sparkles, Coins, X, Clock } from 'lucide-react';
+import { Camera, Send, Check, X, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { processAIInput, processReceiptImage } from '../services/gemini';
 import { Transaction, Category, Member } from '../types';
 import { CATEGORIES } from '../constants';
@@ -18,7 +18,9 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' }) | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const ntdInputRef = useRef<HTMLInputElement>(null);
   const hasFocusedInitialRef = useRef(false);
 
@@ -76,6 +78,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
         alert('AI圖片處理失敗');
       } finally {
         setIsLoading(false);
+        e.target.value = '';
       }
     };
     reader.readAsDataURL(file);
@@ -109,11 +112,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     if (!pendingRecord) return;
     const isTwd = pendingRecord.currency === 'TWD';
     const newNtd = isTwd ? val : Math.round(val * exchangeRate);
-    setPendingRecord({
-      ...pendingRecord,
-      originalAmount: val,
-      ntdAmount: newNtd
-    });
+    setPendingRecord({ ...pendingRecord, originalAmount: val, ntdAmount: newNtd });
   };
 
   const toggleSplitMember = (memberId: string) => {
@@ -125,22 +124,13 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
       : [...currentSplit, memberId];
     
     if (newSplit.length === 0) return;
-
     const isSplit = newSplit.length > 1;
-    let newCategory = pendingRecord.category;
-    
-    if (isSplit && newCategory === '個人消費') {
-      newCategory = '雜項';
-    } else if (!isSplit) {
-      newCategory = '個人消費';
-    }
-
     setPendingRecord({ 
       ...pendingRecord, 
       splitWith: newSplit,
       isSplit: isSplit,
       type: isSplit ? '公帳' : '私帳',
-      category: newCategory as Category
+      category: (isSplit ? (pendingRecord.category === '個人消費' ? '雜項' : pendingRecord.category) : '個人消費') as Category
     });
   };
 
@@ -153,122 +143,134 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-4 items-center h-16 sm:h-18">
-        <div className="flex-1 relative group h-full">
-          <input 
-            type="text"
-            placeholder="Coop 咖啡3 早餐2"
-            className="w-full h-full bg-white comic-border rounded-full pl-6 pr-14 text-lg font-black italic tracking-tight shadow-sm focus:outline-none transition-all group-hover:bg-slate-50 placeholder:text-slate-300 placeholder:italic placeholder:font-bold placeholder:text-[13px] placeholder:tracking-normal"
+      {/* 品牌 Header - 升級 3D 圖示解決顯示問題 */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-[#FFDADA] border-[3.5px] border-black rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0 transform -rotate-3 overflow-hidden p-1.5">
+            {/* 更換為 Microsoft Fluent 3D 圖示，更穩定且視覺效果更好 */}
+            <img 
+              src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Animals/Pig%20Face.png" 
+              alt="🐷" 
+              className="w-full h-full object-contain drop-shadow-md"
+              loading="lazy"
+            />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-black leading-none tracking-tight mb-1 italic">
+              智帳旅行
+            </h2>
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={11} className="text-[#F6D32D] fill-current" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] opacity-80">TripSplit AI</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* 匯率標籤 */}
+        <div className="group relative">
+           <div className="absolute inset-0 bg-black rounded-xl translate-x-1 translate-y-1 group-hover:translate-x-0.5 group-hover:translate-y-0.5 transition-all"></div>
+           <div className="relative bg-white border-[2.5px] border-black px-4 py-2 rounded-xl text-[11px] font-black flex items-center gap-2">
+              <span className="text-blue-500">1 {defaultCurrency}</span>
+              <span className="text-slate-300">=</span>
+              <span className="text-red-500">{exchangeRate} TWD</span>
+           </div>
+        </div>
+      </div>
+
+      {/* 主卡片區域 */}
+      <div className="bg-white border-[3.5px] border-black rounded-[2.5rem] p-5 comic-shadow space-y-3">
+        
+        {/* 輸入框容器 */}
+        <div className="relative">
+          <textarea 
+            placeholder="Coop 咖啡3 可頌1.9"
+            className="w-full h-24 bg-white border-[3.5px] border-black rounded-2xl pl-6 pr-16 py-4 text-lg font-bold shadow-sm focus:outline-none transition-all placeholder:text-slate-200 placeholder:font-bold resize-none"
             value={inputText}
             onChange={e => setInputText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleTextSubmit();
+              }
+            }}
           />
           <button 
             onClick={handleTextSubmit}
             disabled={isLoading || !inputText.trim()}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-black/20 hover:text-black group-focus-within:text-black transition-colors disabled:opacity-5"
+            className="absolute right-3 bottom-4 w-11 h-11 bg-white border-[2.5px] border-slate-100 rounded-full flex items-center justify-center text-[#FFBABA] hover:text-[#FF8585] hover:border-black transition-all disabled:opacity-30 shadow-sm"
           >
-            <Send size={22} strokeWidth={4} />
+            <Send size={20} strokeWidth={3} className="ml-0.5" />
           </button>
         </div>
-        
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isLoading}
-          className="bg-[#F6D32D] text-black w-16 h-16 sm:w-18 sm:h-18 rounded-full border-[3px] border-black comic-shadow-sm flex items-center justify-center transition-all active:translate-y-1 active:shadow-none hover:bg-yellow-300 disabled:opacity-50 shrink-0 aspect-square"
-        >
-          <Camera size={30} strokeWidth={3} />
-        </button>
+
+        {/* 底部功能按鈕組 */}
+        <div className="flex justify-center items-center gap-6 pt-0">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="w-16 h-16 bg-white border-[3.5px] border-black rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all hover:bg-slate-50 disabled:opacity-50"
+          >
+            <ImageIcon size={28} strokeWidth={3} className="text-black" />
+          </button>
+
+          <button 
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={isLoading}
+            className="w-16 h-16 bg-[#F6D32D] border-[3.5px] border-black rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all hover:bg-yellow-300 disabled:opacity-50"
+          >
+            <Camera size={28} strokeWidth={3} className="text-black" />
+          </button>
+        </div>
+
         <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageUpload} />
+        <input type="file" ref={cameraInputRef} hidden accept="image/*" capture="environment" onChange={handleImageUpload} />
       </div>
 
+      {/* 確認彈窗 */}
       {pendingRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white border-[3px] border-black rounded-[2.5rem] sm:rounded-[3rem] w-full max-w-sm p-6 sm:p-8 comic-shadow relative animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border-[3.5px] border-black rounded-[2.5rem] w-full max-w-sm p-7 comic-shadow relative animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-black text-xl sm:text-2xl flex items-center gap-3 text-slate-900 italic">
-                <Check className="text-green-500" size={24} strokeWidth={4} /> 確認消費明細
+              <h3 className="font-black text-2xl flex items-center gap-3 text-slate-900">
+                <Check className="text-green-500" size={28} strokeWidth={4} /> 確認明細
               </h3>
               <button onClick={() => setPendingRecord(null)} className="p-2 bg-slate-50 rounded-full text-slate-400">
-                <X size={20} strokeWidth={3} />
+                <X size={24} strokeWidth={3} />
               </button>
             </div>
             
-            <div className="space-y-3.5 max-h-[60vh] overflow-y-auto no-scrollbar pb-4 pr-1">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
-                  <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">日期</label>
-                  <input type="date" className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0" value={pendingRecord.date} onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})} />
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-2">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="bg-slate-50 p-3 rounded-2xl border-[2.5px] border-black">
+                  <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">日期</label>
+                  <input type="date" className="w-full bg-transparent border-none focus:ring-0 text-base font-black p-0" value={pendingRecord.date} onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})} />
                 </div>
-                <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
-                  <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">店家</label>
-                  <input className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0" value={pendingRecord.merchant} onChange={e => setPendingRecord({...pendingRecord, merchant: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-[#FFFDF0] p-2.5 rounded-xl border-[3px] border-[#E64A4A]">
-                  <label className="text-[10px] font-black text-[#E64A4A] mb-0.5 block uppercase tracking-tighter">台幣金額</label>
-                  <input 
-                    ref={ntdInputRef}
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="0"
-                    className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0"
-                    value={pendingRecord.ntdAmount || ''}
-                    onChange={e => setPendingRecord({...pendingRecord, ntdAmount: e.target.value ? Number(e.target.value) : 0})}
-                  />
-                </div>
-                <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
-                  <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-wider">外幣 ({pendingRecord.currency})</label>
-                  <input type="number" inputMode="decimal" placeholder="0" className="w-full bg-transparent border-none focus:ring-0 text-lg sm:text-xl font-black text-slate-900 p-0" value={pendingRecord.originalAmount || ''} onChange={e => handleOriginalAmountChange(e.target.value ? Number(e.target.value) : 0)} />
+                <div className="bg-slate-50 p-3 rounded-2xl border-[2.5px] border-black">
+                  <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">店家</label>
+                  <input className="w-full bg-transparent border-none focus:ring-0 text-base font-black p-0" value={pendingRecord.merchant} onChange={e => setPendingRecord({...pendingRecord, merchant: e.target.value})} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
-                  <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">分類</label>
-                  <select className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0 appearance-none" value={pendingRecord.category} onChange={e => setPendingRecord({...pendingRecord, category: e.target.value as Category})}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="bg-[#FFFDF0] p-3 rounded-2xl border-[2.5px] border-[#E64A4A]">
+                  <label className="text-[10px] font-black text-[#E64A4A] mb-1 block uppercase tracking-tighter">台幣金額</label>
+                  <input type="number" className="w-full bg-transparent border-none focus:ring-0 text-xl font-black p-0" value={pendingRecord.ntdAmount || ''} onChange={e => setPendingRecord({...pendingRecord, ntdAmount: Number(e.target.value)})} />
                 </div>
-                <div className="bg-slate-50 p-2.5 rounded-xl border-[3px] border-black">
-                  <label className="text-[10px] font-black text-slate-400 mb-0.5 block uppercase tracking-widest">付款人</label>
-                  <select className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base font-black text-slate-900 p-0 appearance-none" value={pendingRecord.payerId} onChange={e => setPendingRecord({...pendingRecord, payerId: e.target.value})}>
-                    {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
+                <div className="bg-slate-50 p-3 rounded-2xl border-[2.5px] border-black">
+                  <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">外幣 ({pendingRecord.currency})</label>
+                  <input type="number" className="w-full bg-transparent border-none focus:ring-0 text-xl font-black p-0" value={pendingRecord.originalAmount || ''} onChange={e => handleOriginalAmountChange(Number(e.target.value))} />
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-2xl border-[3px] border-black">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">參與分帳人員 <span className="text-[8px] text-blue-500">(類型: {pendingRecord.type})</span></label>
-                  <input 
-                    type="checkbox" 
-                    className="w-5 h-5 accent-blue-500" 
-                    checked={pendingRecord.isSplit} 
-                    onChange={e => {
-                      dismissKeyboard();
-                      const isSplit = e.target.checked;
-                      setPendingRecord({
-                        ...pendingRecord, 
-                        isSplit, 
-                        type: isSplit ? '公帳' : '私帳',
-                        splitWith: isSplit ? members.map(m => m.id) : [pendingRecord.payerId || currentUserId],
-                        category: isSplit ? (pendingRecord.category === '個人消費' ? '雜項' : pendingRecord.category) : '個人消費'
-                      });
-                    }} 
-                  />
-                </div>
-                <div className="flex flex-nowrap gap-1.5 overflow-x-auto no-scrollbar pt-1">
+              <div className="bg-slate-50 p-4 rounded-2xl border-[2.5px] border-black">
+                <label className="text-[10px] font-black text-slate-400 mb-3 block uppercase tracking-widest">參與成員</label>
+                <div className="flex flex-wrap gap-2">
                   {members.map(m => (
                     <button
                       key={m.id}
                       onClick={() => toggleSplitMember(m.id)}
-                      className={`flex-1 min-w-0 py-2 px-1 rounded-xl text-[11px] font-black border-2 transition-all whitespace-nowrap overflow-hidden text-ellipsis ${
-                        pendingRecord.splitWith?.includes(m.id) 
-                          ? 'bg-[#F6D32D] text-black border-black shadow-sm' 
-                          : 'bg-white text-slate-300 border-slate-100'
+                      className={`py-2 px-4 rounded-xl text-[12px] font-black border-2 transition-all ${
+                        pendingRecord.splitWith?.includes(m.id) ? 'bg-[#F6D32D] border-black shadow-sm' : 'bg-white border-slate-100 text-slate-300'
                       }`}
                     >
                       {m.name}
@@ -277,23 +279,15 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-2xl border-[3px] border-black">
-                <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">項目內容 (收據清單)</label>
-                <textarea 
-                  className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm sm:text-base leading-relaxed p-0 text-slate-950 resize-none whitespace-pre-wrap min-h-[100px]"
-                  value={pendingRecord.item}
-                  onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})}
-                />
+              <div className="bg-slate-50 p-4 rounded-2xl border-[2.5px] border-black">
+                <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">項目內容</label>
+                <textarea className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm leading-snug p-0 resize-none min-h-[100px]" value={pendingRecord.item} onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})} />
               </div>
             </div>
 
             <div className="flex gap-4 mt-6">
-              <button onClick={() => setPendingRecord(null)} className="flex-1 py-4 bg-white border-[3px] border-black rounded-2xl font-black text-base active:scale-95 transition-all">
-                取消
-              </button>
-              <button onClick={confirmRecord} className="flex-1 py-4 bg-black text-white rounded-2xl font-black text-base comic-shadow flex items-center justify-center gap-2 active:translate-y-1 transition-all">
-                確認送出
-              </button>
+              <button onClick={() => setPendingRecord(null)} className="flex-1 py-4 border-[2.5px] border-black rounded-2xl font-black text-base active:scale-95 transition-all">取消</button>
+              <button onClick={confirmRecord} className="flex-1 py-4 bg-black text-white rounded-2xl font-black text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 transition-all">確認</button>
             </div>
           </div>
         </div>

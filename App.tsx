@@ -6,7 +6,7 @@ import Overview from './components/Overview';
 import Details from './components/Details';
 import Settings from './components/Settings';
 import { fetchManagementConfig, fetchTransactionsFromSheet, saveToGoogleSheet, deleteTransactionFromSheet } from './services/sheets';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, MapPin } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -210,20 +210,27 @@ const App: React.FC = () => {
 
       <header className="px-6 py-8 sticky top-0 z-20">
         <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-black text-slate-900 flex items-center gap-2">
-              {activeLedger?.name || '載入中...'} <span className="bg-[#F6D32D] text-sm px-3 py-1.5 rounded-full border-2 border-black font-black italic">Go!</span>
+          <div className="space-y-2">
+            <h1 className="text-4xl font-black text-slate-900 leading-tight italic tracking-tighter">
+              {activeLedger?.name || '載入中...'} 
             </h1>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-none">
-               TripSplit AI 記帳助手
-            </p>
+            <div className="flex items-center gap-2 text-slate-400">
+               <MapPin size={12} className="text-blue-500 fill-current opacity-80" />
+               <p className="text-[11px] font-black uppercase tracking-[0.25em] leading-none">
+                 Adventure Journal
+               </p>
+            </div>
           </div>
+          
           <button 
             onClick={handleJumpToUserSelection}
             disabled={isGlobalLocked}
-            className="h-11 px-5 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black comic-shadow-sm truncate max-w-[120px] active:translate-y-1 active:shadow-none transition-all cursor-pointer hover:bg-yellow-300 disabled:opacity-50"
+            className="group relative"
           >
-            {state.currentUser || '...'}
+            <div className="absolute inset-0 bg-black rounded-2xl translate-x-1 translate-y-1 group-active:translate-x-0 group-active:translate-y-0 transition-all"></div>
+            <div className="relative h-12 px-6 bg-[#F6D32D] border-[3px] border-black rounded-2xl flex items-center justify-center font-black truncate max-w-[130px] transition-all hover:bg-yellow-300 disabled:opacity-50 text-base">
+              {state.currentUser || '...'}
+            </div>
           </button>
         </div>
       </header>
@@ -251,7 +258,6 @@ const App: React.FC = () => {
         {activeTab === 'settings' && <Settings state={state} updateState={updateState} onReloadManagement={loadManagement} onSwitchLedger={(l) => syncLedgerData(l, false)} />}
       </main>
 
-      {/* 優化後的導覽列：膠囊化設計 + 智慧隱藏 */}
       <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-white border-[3px] border-black rounded-full p-1.5 flex justify-between items-center z-40 transition-all duration-500 ease-in-out ${
         (isGlobalLocked || !showNav) 
           ? 'translate-y-[200%] opacity-0 scale-90' 
