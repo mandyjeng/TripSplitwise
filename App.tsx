@@ -6,7 +6,7 @@ import Overview from './components/Overview';
 import Details from './components/Details';
 import Settings from './components/Settings';
 import { fetchManagementConfig, fetchTransactionsFromSheet, saveToGoogleSheet, deleteTransactionFromSheet } from './services/sheets';
-import { Sparkles, MapPin } from 'lucide-react';
+import { Sparkles, MapPin, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [initialEditId, setInitialEditId] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
   
   const [showNav, setShowNav] = useState(true);
   const lastScrollY = useRef(0);
@@ -37,9 +38,24 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, ...updates }));
   };
 
+  /**
+   * 監聽全域未處理的 Promise 拒絕，捕獲 Fetch 錯誤
+   */
+  useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled Rejection:', event.reason);
+      if (String(event.reason).includes('Failed to fetch')) {
+        setGlobalError('網路連線失敗，請檢查您的網路環境或 API 網址是否正確。');
+      }
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => window.removeEventListener('unhandledrejection', handleRejection);
+  }, []);
+
   const syncLedgerData = useCallback(async (ledger: Ledger, isManual: boolean = false) => {
     if (isManual) setIsRefreshing(true);
     else setIsSyncing(true);
+    setGlobalError(null);
     
     try {
       let ledgerMembers: Member[] = ledger.members.map(name => ({ id: name, name }));
@@ -47,7 +63,6 @@ const App: React.FC = () => {
         ledgerMembers = [{ id: '訪客', name: '訪客' }];
       }
 
-      // 傳遞成員資料進去解析分帳細節
       const records = await fetchTransactionsFromSheet(ledger.url, ledgerMembers);
       
       const ledgerCurrency = ledger.currency || 'JPY';
@@ -74,9 +89,9 @@ const App: React.FC = () => {
         currentUser: nextCurrentUser,
         sheetUrl: ledger.url
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('子帳本資料載入失敗');
+      setGlobalError(e.message || '子帳本資料載入失敗');
     } finally {
       setIsRefreshing(false);
       setIsSyncing(false);
@@ -85,6 +100,7 @@ const App: React.FC = () => {
 
   const loadManagement = useCallback(async () => {
     setIsSyncing(true);
+    setGlobalError(null);
     try {
       const ledgers = await fetchManagementConfig(MASTER_GAS_URL);
       if (ledgers.length > 0) {
@@ -93,9 +109,9 @@ const App: React.FC = () => {
         updateState({ ledgers });
         await syncLedgerData(active, false);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('無法取得帳本列表');
+      setGlobalError(e.message || '無法取得帳本列表');
     } finally {
       setIsSyncing(false);
     }
@@ -113,7 +129,6 @@ const App: React.FC = () => {
       }
       lastScrollY.current = currentScrollY;
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -132,6 +147,7 @@ const App: React.FC = () => {
     const isSplit = t.isSplit ?? true;
     const payerId = t.payerId || state.currentUser;
     const splitWith = isSplit ? (t.splitWith || state.members.map(m => m.id)) : [payerId];
+    const finalType = splitWith.length === 1 ? '私帳' : (t.type || '公帳');
 
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
@@ -139,33 +155,38 @@ const App: React.FC = () => {
       item: t.item || '未命名項目',
       merchant: t.merchant || '未知店家',
       category: (t.category || '雜項') as Category,
-      type: isSplit ? '公帳' : '私帳',
+      type: finalType as '公帳' | '私帳',
       payerId: payerId,
       currency: t.currency || state.defaultCurrency || 'JPY',
       originalAmount: t.originalAmount || 0,
       ntdAmount: t.ntdAmount || 0,
       splitWith: splitWith,
-      customSplits: t.customSplits, // 確保手動分帳被傳入
+      customSplits: t.customSplits,
       isSplit: isSplit,
       exchangeRate: state.exchangeRate,
     };
 
     updateState({ transactions: [newTransaction, ...state.transactions] });
-    saveToGoogleSheet(activeLedger.url, newTransaction, state.members);
-    setActiveTab('overview');
-    setShowNav(true);
+    try {
+      await saveToGoogleSheet(activeLedger.url, newTransaction, state.members);
+      setActiveTab('overview');
+      setShowNav(true);
+    } catch (err) {
+      alert('資料已存至本地，但雲端同步失敗。');
+    }
   };
 
   const onDeleteTransaction = async (id: string) => {
     const t = state.transactions.find(item => item.id === id);
     if (!t) return;
-
     updateState({ transactions: state.transactions.filter(item => item.id !== id) });
-    
     if (state.sheetUrl && t.rowIndex !== undefined) {
-      await deleteTransactionFromSheet(state.sheetUrl, t.rowIndex);
+      try {
+        await deleteTransactionFromSheet(state.sheetUrl, t.rowIndex);
+      } catch (err) {
+        alert('雲端刪除失敗');
+      }
     }
-
     setActiveTab('details');
   };
 
@@ -177,14 +198,12 @@ const App: React.FC = () => {
 
   const handleJumpToUserSelection = () => {
     if (isSyncing || isRefreshing || isAIProcessing) return;
-    
     setActiveTab('settings');
     setShowNav(true);
     setTimeout(() => {
       const element = document.getElementById('user-selection-section');
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if ('vibrate' in navigator) navigator.vibrate(50);
       }
     }, 150);
   };
@@ -193,19 +212,32 @@ const App: React.FC = () => {
   const isGlobalLocked = isSyncing || isAIProcessing || isRefreshing;
   
   const getLoadingMessage = () => {
-    if (isAIProcessing) return "讓AI想一想...";
+    if (isAIProcessing) return "讓 AI 想一想...";
     if (isRefreshing) return "帳本同步中...";
-    return "切換帳本中...";
+    return "連線雲端中...";
   };
 
   return (
     <div className={`max-w-md mx-auto min-h-screen flex flex-col relative overflow-x-hidden theme-${state.theme || 'comic'}`}>
+      {/* 載入中遮罩 */}
       {isGlobalLocked && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 comic-shadow flex flex-col items-center gap-5">
-            <Sparkles size={48} className="text-[#F6D32D] animate-pulse" />
-            <div className="text-center font-black">{getLoadingMessage()}</div>
+            <Sparkles size={48} className="text-[#F6D32D] animate-bounce" />
+            <div className="text-center font-black text-lg">{getLoadingMessage()}</div>
           </div>
+        </div>
+      )}
+
+      {/* 異常提示 */}
+      {globalError && (
+        <div className="mx-6 mt-4 p-4 bg-[#FEF2F2] border-[3px] border-[#E64A4A] rounded-2xl flex items-start gap-3 animate-in slide-in-from-top duration-300">
+          <AlertCircle className="text-[#E64A4A] shrink-0 mt-0.5" size={20} />
+          <div className="flex-1">
+            <p className="text-[13px] font-black text-[#E64A4A] leading-tight mb-2">{globalError}</p>
+            <button onClick={() => loadManagement()} className="text-[11px] font-black bg-white border-2 border-black px-3 py-1 rounded-lg active:translate-y-0.5 transition-all">重新載入</button>
+          </div>
+          <button onClick={() => setGlobalError(null)} className="text-[#E64A4A] opacity-50"><X size={18} /></button>
         </div>
       )}
 
@@ -217,9 +249,7 @@ const App: React.FC = () => {
             </h1>
             <div className="flex items-center gap-2 text-slate-400">
                <MapPin size={12} className="text-blue-500 fill-current opacity-80" />
-               <p className="text-[11px] font-black uppercase tracking-[0.25em] leading-none">
-                 Adventure Journal
-               </p>
+               <p className="text-[11px] font-black uppercase tracking-[0.25em] leading-none">Adventure Journal</p>
             </div>
           </div>
           
@@ -285,5 +315,9 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const X = ({ size, className }: { size: number, className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+);
 
 export default App;

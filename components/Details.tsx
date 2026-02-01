@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Member, Category, AppState } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
-import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2, Calculator, Users, Zap, Check } from 'lucide-react';
+import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2, Calculator, Users, Zap, Check, UserCheck, Tag, CreditCard, ChevronDown } from 'lucide-react';
 import { updateTransactionInSheet } from '../services/sheets';
 
 interface DetailsProps {
@@ -23,7 +23,9 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingItem, setEditingItem] = useState<Transaction | null>(null);
   const [editSplitMode, setEditSplitMode] = useState<'equal' | 'custom'>('equal');
-  const [editSplitCurrency, setEditSplitCurrency] = useState<'TWD' | 'ORIGINAL'>('TWD');
+  const [editSplitCurrency, setEditSplitCurrency] = useState<'ORIGINAL' | 'TWD'>('ORIGINAL');
+
+  const [openDropdown, setOpenDropdown] = useState<'payer' | 'category' | 'type' | null>(null);
 
   useEffect(() => {
     if (initialEditId) {
@@ -41,6 +43,12 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
        setEditSplitMode(editingItem.customSplits && Object.keys(editingItem.customSplits).length > 0 ? 'custom' : 'equal');
     }
   }, [editingItem?.id]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdown(null);
+    if (openDropdown) window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [openDropdown]);
 
   const currentEffectiveRate = useMemo(() => {
     if (!editingItem || !editingItem.originalAmount) return state.exchangeRate;
@@ -76,6 +84,11 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
           .filter(([_, val]) => val > 0)
           .map(([id]) => id);
       }
+      
+      // 最後一道關卡自動修正類型
+      if (finalItem.splitWith.length === 1) {
+        finalItem.type = '私帳';
+      }
 
       const newList = state.transactions.map(t => t.id === finalItem.id ? { ...finalItem } : t);
       updateState({ transactions: newList });
@@ -92,41 +105,85 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     }
   };
 
+  const handleDelete = async () => {
+    if (!editingItem || isDeleting || isSaving) return;
+    if (!confirm('確定要刪除此筆帳務嗎？')) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDeleteTransaction(editingItem.id);
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('刪除失敗');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleCustomSplitChange = (memberId: string, val: string) => {
     if (!editingItem) return;
     const inputVal = parseFloat(val) || 0;
+    const ntdValue = editSplitCurrency === 'TWD' ? inputVal : Math.round(inputVal * currentEffectiveRate);
+
+    const newCustomSplits = { ...(editingItem.customSplits || {}), [memberId]: ntdValue };
     
-    // 內部狀態永遠存台幣
-    const ntdValue = editSplitCurrency === 'TWD' 
-      ? inputVal 
-      : Math.round(inputVal * currentEffectiveRate);
+    // 統計人數
+    const activeCount = Object.values(newCustomSplits).filter(v => v > 0).length;
+    const newType = activeCount === 1 ? '私帳' : '公帳';
 
     setEditingItem({
       ...editingItem,
-      customSplits: { ...(editingItem.customSplits || {}), [memberId]: ntdValue }
+      customSplits: newCustomSplits,
+      type: newType as any
     });
   };
 
   const fillRemaining = (memberId: string) => {
     if (!editingItem) return;
     const currentNtd = editingItem.customSplits?.[memberId] || 0;
-    const remainingNtd = editSplitCurrency === 'TWD' 
-      ? remainingAmount 
-      : remainingAmount * currentEffectiveRate;
-    
+    const remainingNtd = editSplitCurrency === 'TWD' ? remainingAmount : remainingAmount * currentEffectiveRate;
     handleCustomSplitChange(memberId, ((currentNtd + remainingNtd) / (editSplitCurrency === 'TWD' ? 1 : currentEffectiveRate)).toString());
   };
 
   const toggleSplitMember = (memberId: string) => {
     if (!editingItem) return;
     const currentSplit = editingItem.splitWith || [];
-    const newSplit = currentSplit.includes(memberId)
-      ? currentSplit.filter(id => id !== memberId)
-      : [...currentSplit, memberId];
-    
+    const newSplit = currentSplit.includes(memberId) ? currentSplit.filter(id => id !== memberId) : [...currentSplit, memberId];
     if (newSplit.length === 0) return;
-    setEditingItem({ ...editingItem, splitWith: newSplit });
+    
+    // 自動判定
+    const newType = newSplit.length === 1 ? '私帳' : '公帳';
+
+    setEditingItem({ ...editingItem, splitWith: newSplit, type: newType as any });
   };
+
+  const CustomSelect = ({ label, icon: Icon, value, options, onSelect, isOpen, onToggle, disabled }: any) => (
+    <div className="relative" onClick={e => e.stopPropagation()}>
+      <label className="text-[9px] font-black text-slate-400 mb-1 block uppercase flex items-center gap-2"><Icon size={12} /> {label}</label>
+      <button 
+        disabled={disabled}
+        onClick={onToggle}
+        className="w-full bg-white border-2 border-black rounded-xl px-4 py-2.5 flex items-center justify-between shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all disabled:opacity-50"
+      >
+        <span className="font-black text-sm">{options.find((o: any) => o.id === value)?.name || value}</span>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="absolute z-[60] left-0 right-0 top-full mt-2 bg-white border-[3px] border-black rounded-2xl p-2 comic-shadow animate-in fade-in zoom-in-95 duration-100 max-h-52 overflow-y-auto no-scrollbar">
+          {options.map((opt: any) => (
+            <button
+              key={opt.id}
+              onClick={() => { onSelect(opt.id); onToggle(); }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-black text-sm mb-1 last:mb-0 transition-colors ${value === opt.id ? 'bg-[#F6D32D] text-black' : 'hover:bg-slate-50 text-slate-600'}`}
+            >
+              {opt.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   const filteredTransactions = state.transactions
     .filter(t => filterCategory === '全部' || t.category === filterCategory)
@@ -134,10 +191,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       if (filterMemberId === '全部') return true;
       return t.payerId === filterMemberId || (t.isSplit && t.splitWith.includes(filterMemberId));
     })
-    .filter(t => 
-      t.item.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      t.merchant.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter(t => t.item.toLowerCase().includes(searchQuery.toLowerCase()) || t.merchant.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const dates = Array.from(new Set(filteredTransactions.map(t => t.date)));
@@ -145,7 +199,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
 
   return (
     <div className="space-y-6 pb-24">
-      {/* 搜尋與過濾 UI 保持不變 ... */}
       <div className="sticky top-0 bg-[#FDFCF8]/95 backdrop-blur-md pt-1 pb-4 z-10 border-b-2 border-dashed border-slate-200">
         <div className="flex gap-2.5 mb-3.5">
           <div className="relative flex-1">
@@ -194,26 +247,56 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             </div>
             
             <div className="space-y-4 max-h-[65vh] overflow-y-auto no-scrollbar pb-4">
+              <div className="space-y-3">
+                <CustomSelect 
+                  label="付款人" icon={UserCheck} value={editingItem.payerId} 
+                  options={state.members.map(m => ({ id: m.id, name: m.name }))}
+                  isOpen={openDropdown === 'payer'} 
+                  onToggle={() => setOpenDropdown(openDropdown === 'payer' ? null : 'payer')}
+                  onSelect={(id: string) => setEditingItem({...editingItem, payerId: id})}
+                  disabled={isAnyActionRunning}
+                />
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <CustomSelect 
+                    label="分類" icon={Tag} value={editingItem.category} 
+                    options={CATEGORIES.map(c => ({ id: c, name: c }))}
+                    isOpen={openDropdown === 'category'} 
+                    onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
+                    onSelect={(cat: Category) => setEditingItem({...editingItem, category: cat})}
+                    disabled={isAnyActionRunning}
+                  />
+                  <CustomSelect 
+                    label="帳務類型" icon={CreditCard} value={editingItem.type} 
+                    options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]}
+                    isOpen={openDropdown === 'type'} 
+                    onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')}
+                    onSelect={(type: any) => setEditingItem({...editingItem, type})}
+                    disabled={isAnyActionRunning}
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-2.5 rounded-xl border-2 border-black"><label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase">日期</label><input type="date" className="w-full bg-transparent font-black text-sm p-0" value={editingItem.date} onChange={e => setEditingItem({...editingItem, date: e.target.value})} /></div>
-                <div className="bg-slate-50 p-2.5 rounded-xl border-2 border-black"><label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase">店家</label><input className="w-full bg-transparent font-black text-sm p-0" value={editingItem.merchant} onChange={e => setEditingItem({...editingItem, merchant: e.target.value})} /></div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border-2 border-black"><label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase">日期</label><input type="date" disabled={isAnyActionRunning} className="w-full bg-transparent font-black text-sm p-0" value={editingItem.date} onChange={e => setEditingItem({...editingItem, date: e.target.value})} /></div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border-2 border-black"><label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase">店家</label><input disabled={isAnyActionRunning} className="w-full bg-transparent font-black text-sm p-0" value={editingItem.merchant} onChange={e => setEditingItem({...editingItem, merchant: e.target.value})} /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 relative">
-                <div className="bg-[#FFFDF0] p-2.5 rounded-xl border-2 border-[#E64A4A]"><label className="text-[9px] font-black text-[#E64A4A] mb-0.5 block uppercase">台幣金額</label><input type="number" className="w-full bg-transparent font-black text-xl p-0" value={editingItem.ntdAmount || ''} onChange={e => setEditingItem({...editingItem, ntdAmount: Number(e.target.value)})} /></div>
-                <div className="bg-slate-50 p-2.5 rounded-xl border-2 border-black"><label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase">外幣 ({editingItem.currency})</label><input type="number" className="w-full bg-transparent font-black text-xl p-0" value={editingItem.originalAmount || ''} onChange={e => { const ori = Number(e.target.value); setEditingItem({...editingItem, originalAmount: ori, ntdAmount: Math.round(ori * state.exchangeRate)}); }} /></div>
+                <div className="bg-[#FFFDF0] p-2.5 rounded-xl border-2 border-[#E64A4A]"><label className="text-[9px] font-black text-[#E64A4A] mb-0.5 block uppercase">台幣金額</label><input disabled={isAnyActionRunning} type="number" className="w-full bg-transparent font-black text-xl p-0" value={editingItem.ntdAmount || ''} onChange={e => setEditingItem({...editingItem, ntdAmount: Number(e.target.value)})} /></div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border-2 border-black"><label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase">外幣 ({editingItem.currency})</label><input disabled={isAnyActionRunning} type="number" className="w-full bg-transparent font-black text-xl p-0" value={editingItem.originalAmount || ''} onChange={e => { const ori = Number(e.target.value); setEditingItem({...editingItem, originalAmount: ori, ntdAmount: Math.round(ori * state.exchangeRate)}); }} /></div>
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] font-black px-2 py-0.5 rounded-full z-10">Rate: 1:{currentEffectiveRate.toFixed(2)}</div>
               </div>
 
               <div className="bg-slate-100 p-1.5 rounded-2xl flex border-2 border-black">
-                <button onClick={() => setEditSplitMode('equal')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${editSplitMode === 'equal' ? 'bg-black text-white' : 'text-slate-400'}`}><Users size={14} /> 均分</button>
-                <button onClick={() => setEditSplitMode('custom')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${editSplitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}><Calculator size={14} /> 手動</button>
+                <button disabled={isAnyActionRunning} onClick={() => setEditSplitMode('equal')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${editSplitMode === 'equal' ? 'bg-black text-white' : 'text-slate-400'}`}><Users size={14} /> 均分</button>
+                <button disabled={isAnyActionRunning} onClick={() => { setEditSplitMode('custom'); setEditSplitCurrency('ORIGINAL'); }} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${editSplitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}><Calculator size={14} /> 手動</button>
               </div>
 
               {editSplitMode === 'custom' && (
                 <div className="flex gap-2">
-                  <button onClick={() => setEditSplitCurrency('TWD')} className={`flex-1 py-1 rounded-lg border-2 font-black text-[9px] ${editSplitCurrency === 'TWD' ? 'bg-black text-white border-black' : 'bg-white text-slate-400 border-slate-100'}`}>台幣輸入</button>
-                  <button onClick={() => setEditSplitCurrency('ORIGINAL')} className={`flex-1 py-1 rounded-lg border-2 font-black text-[9px] ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black border-black' : 'bg-white text-slate-400 border-slate-100'}`}>外幣輸入</button>
+                  <button disabled={isAnyActionRunning} onClick={() => setEditSplitCurrency('TWD')} className={`flex-1 py-1 rounded-lg border-2 font-black text-[9px] ${editSplitCurrency === 'TWD' ? 'bg-black text-white border-black' : 'bg-white text-slate-400 border-slate-100'}`}>台幣輸入</button>
+                  <button disabled={isAnyActionRunning} onClick={() => setEditSplitCurrency('ORIGINAL')} className={`flex-1 py-1 rounded-lg border-2 font-black text-[9px] ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black border-black' : 'bg-white text-slate-400 border-slate-100'}`}>外幣輸入</button>
                 </div>
               )}
 
@@ -230,23 +313,17 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   {state.members.map(m => {
                     const isSelected = editingItem.splitWith?.includes(m.id);
                     const ntdVal = editingItem.customSplits?.[m.id] || 0;
-                    
-                    const displayValue = editSplitCurrency === 'TWD' 
-                      ? (ntdVal || '') 
-                      : (ntdVal > 0 ? (ntdVal / currentEffectiveRate).toFixed(2).replace(/\.00$/, '') : '');
-
-                    const refVal = (editSplitMode === 'custom' && isSelected && ntdVal > 0)
-                      ? (editSplitCurrency === 'TWD' ? `≈ ${(ntdVal/currentEffectiveRate).toFixed(2)} ${editingItem.currency}` : `≈ NT$ ${Math.round(ntdVal)}`)
-                      : "";
+                    const displayValue = editSplitCurrency === 'TWD' ? (ntdVal || '') : (ntdVal > 0 ? (ntdVal / currentEffectiveRate).toFixed(2).replace(/\.00$/, '') : '');
+                    const refVal = (editSplitMode === 'custom' && isSelected && ntdVal > 0) ? (editSplitCurrency === 'TWD' ? `≈ ${(ntdVal/currentEffectiveRate).toFixed(2)} ${editingItem.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
 
                     return (
                       <div key={m.id} className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => toggleSplitMember(m.id)} className={`flex-1 flex justify-between p-2 rounded-xl border-2 transition-all ${isSelected ? 'bg-white border-black' : 'bg-transparent border-slate-100 text-slate-300'}`}><span className="text-sm font-black">{m.name}</span>{editSplitMode === 'equal' && isSelected && <Check size={14} strokeWidth={4} className="text-green-500" />}</button>
+                          <button disabled={isAnyActionRunning} onClick={() => toggleSplitMember(m.id)} className={`flex-1 flex justify-between p-2 rounded-xl border-2 transition-all ${isSelected ? 'bg-white border-black' : 'bg-transparent border-slate-100 text-slate-300'}`}><span className="text-sm font-black">{m.name}</span>{editSplitMode === 'equal' && isSelected && <Check size={14} strokeWidth={4} className="text-green-500" />}</button>
                           {editSplitMode === 'custom' && isSelected && (
                             <div className="relative w-28">
-                              <input type="number" placeholder="0" className="w-full bg-white border-2 border-black rounded-xl px-2 py-2 text-xs font-black" value={displayValue} onChange={e => handleCustomSplitChange(m.id, e.target.value)} />
-                              <button onClick={() => fillRemaining(m.id)} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#F6D32D]"><Zap size={12} fill="currentColor" /></button>
+                              <input disabled={isAnyActionRunning} type="number" placeholder="0" className="w-full bg-white border-2 border-black rounded-xl px-2 py-2 text-xs font-black" value={displayValue} onChange={e => handleCustomSplitChange(m.id, e.target.value)} />
+                              <button disabled={isAnyActionRunning} onClick={() => fillRemaining(m.id)} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#F6D32D]"><Zap size={12} fill="currentColor" /></button>
                             </div>
                           )}
                         </div>
@@ -257,12 +334,25 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border-2 border-black"><label className="text-[10px] font-black text-slate-400 mb-2 block uppercase">項目內容</label><textarea className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm leading-relaxed p-0 resize-none min-h-[100px]" value={editingItem.item} onChange={e => setEditingItem({...editingItem, item: e.target.value})} /></div>
+              <div className="bg-slate-50 p-4 rounded-2xl border-2 border-black"><label className="text-[10px] font-black text-slate-400 mb-2 block uppercase">項目內容</label><textarea disabled={isAnyActionRunning} className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm leading-relaxed p-0 resize-none min-h-[100px]" value={editingItem.item} onChange={e => setEditingItem({...editingItem, item: e.target.value})} /></div>
             </div>
 
             <div className="flex gap-3 mt-4">
-              <button disabled={isAnyActionRunning} onClick={() => onDeleteTransaction(editingItem.id)} className="p-4 bg-white border-2 border-red-200 text-red-500 rounded-2xl active:scale-95 transition-all"><Trash2 size={24} /></button>
-              <button disabled={isAnyActionRunning || !isSplitBalanced} onClick={handleSaveEdit} className={`flex-1 py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${isSplitBalanced ? 'bg-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1' : 'bg-slate-200 text-slate-400'}`}>{isSaving ? <Loader2 className="animate-spin" /> : <Save size={20} />} 儲存修改</button>
+              <button 
+                disabled={isAnyActionRunning} 
+                onClick={handleDelete} 
+                className={`p-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center border-2 ${isDeleting ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-white border-red-200 text-red-500'}`}
+              >
+                {isDeleting ? <Loader2 className="animate-spin" size={24} /> : <Trash2 size={24} />}
+              </button>
+              <button 
+                disabled={isAnyActionRunning || !isSplitBalanced} 
+                onClick={handleSaveEdit} 
+                className={`flex-1 py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${isSplitBalanced ? 'bg-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1' : 'bg-slate-200 text-slate-400'}`}
+              >
+                {isSaving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                {isSaving ? '儲存中...' : '儲存修改'}
+              </button>
             </div>
           </div>
         </div>

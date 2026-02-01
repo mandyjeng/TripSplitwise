@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Camera, Send, Check, X, Image as ImageIcon, Sparkles, Zap, Users, Calculator, ArrowRightLeft } from 'lucide-react';
+import { Camera, Send, Check, X, Image as ImageIcon, Sparkles, Zap, Users, Calculator, ArrowRightLeft, UserCheck, Tag, CreditCard, ChevronDown, Loader2 } from 'lucide-react';
 import { processAIInput, processReceiptImage } from '../services/gemini';
 import { Transaction, Category, Member } from '../types';
 import { CATEGORIES } from '../constants';
@@ -19,8 +19,10 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
   const [isLoading, setIsLoading] = useState(false);
   const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' }) | null>(null);
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
-  const [customSplitCurrency, setCustomSplitCurrency] = useState<'TWD' | 'ORIGINAL'>('TWD');
+  const [customSplitCurrency, setCustomSplitCurrency] = useState<'ORIGINAL' | 'TWD'>('ORIGINAL');
   
+  const [openDropdown, setOpenDropdown] = useState<'payer' | 'category' | 'type' | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,8 +30,14 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     setIsAIProcessing(isLoading);
   }, [isLoading, setIsAIProcessing]);
 
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdown(null);
+    if (openDropdown) window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [openDropdown]);
+
   const handleTextSubmit = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || isLoading) return;
     setIsLoading(true);
     try {
       const result = await processAIInput(inputText, defaultCurrency);
@@ -37,9 +45,15 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
       setInputText('');
     } catch (error) {
       console.error(error);
-      alert('AI 處理失敗');
+      alert('AI 處理失敗，請檢查網路連線或 API Key');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      handleTextSubmit();
     }
   };
 
@@ -84,11 +98,11 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
       isSplit: true,
       splitWith: members.map(m => m.id),
       customSplits: {},
-      type: '公帳',
+      type: members.length === 1 ? '私帳' : '公帳',
       exchangeRate: exchangeRate
     });
     setSplitMode('equal');
-    setCustomSplitCurrency('TWD');
+    setCustomSplitCurrency('ORIGINAL');
   };
 
   const currentEffectiveRate = useMemo(() => {
@@ -121,31 +135,29 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
       : [...currentSplit, memberId];
     
     if (newSplit.length === 0) return;
-    setPendingRecord({ ...pendingRecord, splitWith: newSplit });
+    const newType = newSplit.length === 1 ? '私帳' : '公帳';
+    setPendingRecord({ ...pendingRecord, splitWith: newSplit, type: newType as any });
   };
 
   const handleCustomSplitChange = (memberId: string, val: string) => {
     if (!pendingRecord) return;
     const inputVal = parseFloat(val) || 0;
-    
-    // 始終將輸入值轉換回台幣存入 state
-    const ntdValue = customSplitCurrency === 'TWD' 
-      ? inputVal 
-      : Math.round(inputVal * currentEffectiveRate);
+    const ntdValue = customSplitCurrency === 'TWD' ? inputVal : Math.round(inputVal * currentEffectiveRate);
+    const newCustomSplits = { ...pendingRecord.customSplits, [memberId]: ntdValue };
+    const activeCount = Object.values(newCustomSplits).filter(v => v > 0).length;
+    const newType = activeCount === 1 ? '私帳' : '公帳';
 
     setPendingRecord({
       ...pendingRecord,
-      customSplits: { ...pendingRecord.customSplits, [memberId]: ntdValue }
+      customSplits: newCustomSplits,
+      type: newType as any
     });
   };
 
   const fillRemaining = (memberId: string) => {
     if (!pendingRecord) return;
     const currentNtd = pendingRecord.customSplits?.[memberId] || 0;
-    const remainingNtd = customSplitCurrency === 'TWD' 
-      ? remainingAmount 
-      : remainingAmount * currentEffectiveRate;
-    
+    const remainingNtd = customSplitCurrency === 'TWD' ? remainingAmount : remainingAmount * currentEffectiveRate;
     handleCustomSplitChange(memberId, ((currentNtd + remainingNtd) / (customSplitCurrency === 'TWD' ? 1 : currentEffectiveRate)).toString());
   };
 
@@ -169,6 +181,34 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     }
   };
 
+  const CustomSelect = ({ label, icon: Icon, value, options, onSelect, isOpen, onToggle }: any) => (
+    <div className="relative" onClick={e => e.stopPropagation()}>
+      <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest flex items-center gap-2"><Icon size={14} /> {label}</label>
+      <button 
+        onClick={onToggle}
+        className="w-full bg-white border-[2.5px] border-black rounded-xl px-4 py-2.5 flex items-center justify-between shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all"
+      >
+        <span className="font-black text-sm">{options.find((o: any) => o.id === value)?.name || value}</span>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="absolute z-[60] left-0 right-0 top-full mt-2 bg-white border-[3.5px] border-black rounded-2xl p-2 comic-shadow animate-in fade-in zoom-in-95 duration-100 max-h-60 overflow-y-auto no-scrollbar">
+          {options.map((opt: any) => (
+            <button
+              key={opt.id}
+              onClick={() => { onSelect(opt.id); onToggle(); }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-black text-sm mb-1 last:mb-0 transition-colors ${value === opt.id ? 'bg-[#F6D32D] text-black' : 'hover:bg-slate-50 text-slate-600'}`}
+            >
+              {opt.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const hasContent = inputText.trim().length > 0;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between px-1">
@@ -187,10 +227,34 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
       </div>
 
       <div className="bg-white border-[3.5px] border-black rounded-[2.5rem] p-5 comic-shadow space-y-3">
-        <textarea placeholder="Coop 咖啡3 可頌1.9" className="w-full h-24 bg-white border-[3.5px] border-black rounded-2xl pl-6 pr-16 py-4 text-lg font-bold focus:outline-none resize-none" value={inputText} onChange={e => setInputText(e.target.value)} />
+        <div className="relative group">
+          <textarea 
+            placeholder="例如：Coop 咖啡3 可頌1.9" 
+            className="w-full h-24 bg-white border-[3.5px] border-black rounded-2xl pl-6 pr-14 py-4 text-lg font-bold focus:outline-none resize-none transition-all placeholder:text-slate-300" 
+            value={inputText} 
+            onChange={e => setInputText(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <button 
+            onClick={handleTextSubmit}
+            disabled={!hasContent || isLoading}
+            className={`absolute right-3 top-3 w-11 h-11 rounded-xl flex items-center justify-center transition-all z-10 ${
+              hasContent 
+                ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] active:scale-95' 
+                : 'bg-slate-100 text-slate-300 cursor-not-allowed opacity-50'
+            }`}
+          >
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} className={hasContent ? 'animate-in zoom-in' : ''} />}
+          </button>
+          {!hasContent && (
+            <div className="absolute left-6 bottom-3 text-[9px] font-black text-slate-300 pointer-events-none uppercase tracking-widest italic animate-pulse">
+              請在此輸入內容
+            </div>
+          )}
+        </div>
         <div className="flex justify-center items-center gap-6 pt-0">
-          <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 bg-white border-[3.5px] border-black rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"><ImageIcon size={28} strokeWidth={3} /></button>
-          <button onClick={() => cameraInputRef.current?.click()} className="w-16 h-16 bg-[#F6D32D] border-[3.5px] border-black rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"><Camera size={28} strokeWidth={3} /></button>
+          <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 bg-white border-[3.5px] border-black rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all hover:bg-slate-50"><ImageIcon size={28} strokeWidth={3} /></button>
+          <button onClick={() => cameraInputRef.current?.click()} className="w-16 h-16 bg-[#F6D32D] border-[3.5px] border-black rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all hover:bg-yellow-400"><Camera size={28} strokeWidth={3} /></button>
         </div>
         <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageUpload} />
         <input type="file" ref={cameraInputRef} hidden accept="image/*" capture="environment" onChange={handleImageUpload} />
@@ -205,9 +269,44 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
             
             <div className="space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar pb-6 px-1">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
+                <CustomSelect 
+                  label="付款人" icon={UserCheck} value={pendingRecord.payerId} 
+                  options={members.map(m => ({ id: m.id, name: m.name }))}
+                  isOpen={openDropdown === 'payer'} 
+                  onToggle={() => setOpenDropdown(openDropdown === 'payer' ? null : 'payer')}
+                  onSelect={(id: string) => setPendingRecord({...pendingRecord, payerId: id})}
+                />
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <CustomSelect 
+                    label="分類" icon={Tag} value={pendingRecord.category} 
+                    options={CATEGORIES.map(c => ({ id: c, name: c }))}
+                    isOpen={openDropdown === 'category'} 
+                    onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
+                    onSelect={(cat: Category) => setPendingRecord({...pendingRecord, category: cat})}
+                  />
+                  <CustomSelect 
+                    label="帳務類型" icon={CreditCard} value={pendingRecord.type} 
+                    options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]}
+                    isOpen={openDropdown === 'type'} 
+                    onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')}
+                    onSelect={(type: any) => setPendingRecord({...pendingRecord, type})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="bg-slate-50 p-3 rounded-2xl border-[2.5px] border-black"><label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">日期</label><input type="date" className="w-full bg-transparent border-none focus:ring-0 text-base font-black p-0" value={pendingRecord.date} onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})} /></div>
-                <div className="bg-slate-50 p-3 rounded-2xl border-[2.5px] border-black"><label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">店家</label><input className="w-full bg-transparent border-none focus:ring-0 text-base font-black p-0" value={pendingRecord.merchant} onChange={e => setPendingRecord({...pendingRecord, merchant: e.target.value})} /></div>
+                <div className="bg-slate-50 p-3 rounded-2xl border-[2.5px] border-black">
+                  <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-widest">店家</label>
+                  <input 
+                    className="w-full bg-transparent border-none focus:ring-0 text-base font-black p-0" 
+                    value={pendingRecord.merchant} 
+                    onFocus={e => e.target.select()}
+                    onChange={e => setPendingRecord({...pendingRecord, merchant: e.target.value})} 
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 relative">
@@ -219,7 +318,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               <div className="space-y-2">
                 <div className="bg-slate-50 p-1.5 rounded-2xl border-[2.5px] border-black flex">
                   <button onClick={() => setSplitMode('equal')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'equal' ? 'bg-black text-white' : 'text-slate-400'}`}><Users size={14} /> 均分模式</button>
-                  <button onClick={() => setSplitMode('custom')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}><Calculator size={14} /> 手動指定</button>
+                  <button onClick={() => { setSplitMode('custom'); setCustomSplitCurrency('ORIGINAL'); }} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}><Calculator size={14} /> 手動指定</button>
                 </div>
                 {splitMode === 'custom' && (
                   <div className="flex gap-2 animate-in fade-in slide-in-from-top-1">
@@ -242,15 +341,8 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                   {members.map(m => {
                     const isSelected = pendingRecord.splitWith?.includes(m.id);
                     const ntdVal = pendingRecord.customSplits?.[m.id] || 0;
-                    
-                    // 根據當前輸入幣別決定顯示在框框裡的數字
-                    const displayValue = customSplitCurrency === 'TWD' 
-                      ? (ntdVal || '') 
-                      : (ntdVal > 0 ? (ntdVal / currentEffectiveRate).toFixed(2).replace(/\.00$/, '') : '');
-
-                    const referenceValue = (splitMode === 'custom' && isSelected && ntdVal > 0)
-                      ? (customSplitCurrency === 'TWD' ? `≈ ${(ntdVal / currentEffectiveRate).toFixed(2)} ${pendingRecord.currency}` : `≈ NT$ ${Math.round(ntdVal)}`)
-                      : "";
+                    const displayValue = customSplitCurrency === 'TWD' ? (ntdVal || '') : (ntdVal > 0 ? (ntdVal / currentEffectiveRate).toFixed(2).replace(/\.00$/, '') : '');
+                    const referenceValue = (splitMode === 'custom' && isSelected && ntdVal > 0) ? (customSplitCurrency === 'TWD' ? `≈ ${(ntdVal / currentEffectiveRate).toFixed(2)} ${pendingRecord.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
 
                     return (
                       <div key={m.id} className="flex flex-col gap-1">
@@ -269,7 +361,15 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                   })}
                 </div>
               </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border-[2.5px] border-black"><label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">項目內容</label><textarea className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm leading-snug p-0 resize-none min-h-[80px]" value={pendingRecord.item} onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})} /></div>
+              <div className="bg-slate-50 p-4 rounded-2xl border-[2.5px] border-black">
+                <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">項目內容</label>
+                <textarea 
+                  className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm leading-snug p-0 resize-none min-h-[80px]" 
+                  value={pendingRecord.item} 
+                  onFocus={e => e.target.select()}
+                  onChange={e => setPendingRecord({...pendingRecord, item: e.target.value})} 
+                />
+              </div>
             </div>
             <div className="flex gap-4 pt-2">
               <button onClick={() => setPendingRecord(null)} className="flex-1 py-4 border-[2.5px] border-black rounded-2xl font-black text-base active:scale-95 transition-all">取消</button>

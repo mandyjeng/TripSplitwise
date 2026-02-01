@@ -13,7 +13,7 @@ const expenseSchema = {
     item: { type: SchemaType.STRING, description: '品項清單，必須包含品項名稱與對應金額，多個品項請用換行分隔。' },
     amount: { type: SchemaType.NUMBER, description: '總金額' },
     currency: { type: SchemaType.STRING, description: '幣別，如 CHF, EUR, JPY, TWD' },
-    category: { type: SchemaType.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險' },
+    category: { type: SchemaType.STRING, description: '分類：住宿、交通、門票、用餐、雜項、保險、個人消費' },
     date: { type: SchemaType.STRING, description: '日期，格式 YYYY-MM-DD。' },
   },
   required: ['merchant', 'item', 'amount', 'currency', 'category', 'date'],
