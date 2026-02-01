@@ -25,17 +25,32 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
     });
 
     state.transactions.forEach(t => {
+      // 付款人先墊錢（增加資產）
+      balances[t.payerId] += t.ntdAmount;
+
       if (t.isSplit) {
-        const splitCount = t.splitWith.length;
-        if (splitCount > 0) {
-          const perPerson = t.ntdAmount / splitCount;
-          balances[t.payerId] += t.ntdAmount;
-          t.splitWith.forEach(mid => {
-            balances[mid] -= perPerson;
-            consumptions[mid] += perPerson;
+        if (t.customSplits && Object.keys(t.customSplits).length > 0) {
+          // --- 手動指定模式 ---
+          Object.entries(t.customSplits).forEach(([mid, amount]) => {
+            // 該成員應付金額（減少資產/增加消費）
+            balances[mid] -= amount;
+            consumptions[mid] += amount;
           });
+        } else {
+          // --- 均分模式 ---
+          const splitCount = t.splitWith.length;
+          if (splitCount > 0) {
+            const perPerson = t.ntdAmount / splitCount;
+            t.splitWith.forEach(mid => {
+              balances[mid] -= perPerson;
+              consumptions[mid] += perPerson;
+            });
+          }
         }
       } else {
+        // --- 非拆帳項目（個人消費） ---
+        // 通常 payerId 就是消費人
+        balances[t.payerId] -= t.ntdAmount;
         consumptions[t.payerId] += t.ntdAmount;
       }
     });

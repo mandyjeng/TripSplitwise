@@ -15,7 +15,6 @@ const App: React.FC = () => {
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [initialEditId, setInitialEditId] = useState<string | null>(null);
   
-  // 智慧導覽列隱藏邏輯
   const [showNav, setShowNav] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -43,12 +42,14 @@ const App: React.FC = () => {
     else setIsSyncing(true);
     
     try {
-      const records = await fetchTransactionsFromSheet(ledger.url);
       let ledgerMembers: Member[] = ledger.members.map(name => ({ id: name, name }));
       if (ledgerMembers.length === 0) {
         ledgerMembers = [{ id: '訪客', name: '訪客' }];
       }
 
+      // 傳遞成員資料進去解析分帳細節
+      const records = await fetchTransactionsFromSheet(ledger.url, ledgerMembers);
+      
       const ledgerCurrency = ledger.currency || 'JPY';
       const sanitizedRecords = records.map(r => {
         let finalCurrency = r.currency || ledgerCurrency;
@@ -102,14 +103,13 @@ const App: React.FC = () => {
 
   useEffect(() => { loadManagement(); }, []);
 
-  // 監聽捲動事件來隱藏/顯示導覽列
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-        setShowNav(false); // 向下捲動 -> 隱藏
+        setShowNav(false);
       } else {
-        setShowNav(true); // 向上捲動 -> 顯示
+        setShowNav(true);
       }
       lastScrollY.current = currentScrollY;
     };
@@ -145,6 +145,7 @@ const App: React.FC = () => {
       originalAmount: t.originalAmount || 0,
       ntdAmount: t.ntdAmount || 0,
       splitWith: splitWith,
+      customSplits: t.customSplits, // 確保手動分帳被傳入
       isSplit: isSplit,
       exchangeRate: state.exchangeRate,
     };

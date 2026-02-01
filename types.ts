@@ -10,7 +10,7 @@ export interface Ledger {
   id: string;
   name: string;
   url: string;
-  sourceUrl?: string; // 新增：指向 Google Sheet 原始文件的連結
+  sourceUrl?: string;
   currency: string;
   exchangeRate: number;
   members: string[];
@@ -29,6 +29,7 @@ export interface Transaction {
   originalAmount: number;
   ntdAmount: number;
   splitWith: string[];
+  customSplits?: Record<string, number>; // 新增：ID 對應金額
   isSplit: boolean;
   exchangeRate: number;
 }
@@ -42,6 +43,5 @@ export interface AppState {
   defaultCurrency: string;
   currentUser: string;
   theme?: 'comic' | 'fresh';
-  /* sheetUrl tracks the Google Sheet Web App URL for the active ledger */
   sheetUrl?: string;
 }

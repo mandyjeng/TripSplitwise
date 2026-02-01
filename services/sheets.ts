@@ -20,7 +20,6 @@ export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
 
     const rawLedgers = data.ledgers || [];
     return rawLedgers.map((l: any) => {
-      // 容錯處理：找尋可能的原始連結欄位名稱
       const sourceUrl = l['原始excel'] || l['原始Excel'] || l['sourceUrl'] || l['URL'] || '';
       
       return {
@@ -47,30 +46,84 @@ const parseLocalDate = (dateStr: string): string => {
 };
 
 /**
+ * 序列化分帳細節 (Record -> String)
+ * 格式優化為：姓名:台幣(外幣);姓名:台幣(外幣)
+ */
+const serializeCustomSplits = (t: Transaction, members: Member[]): string => {
+  const splits = t.customSplits;
+  if (!splits || Object.keys(splits).length === 0) return '';
+  
+  return Object.entries(splits)
+    .map(([id, ntdVal]) => {
+      const name = members?.find(m => m.id === id)?.name || id;
+      
+      // 如果不是台幣交易，則額外附註外幣金額
+      if (t.currency !== 'TWD' && t.ntdAmount > 0) {
+        // 比例計算：(個人台幣 / 總台幣) * 總外幣
+        const oriVal = (ntdVal / t.ntdAmount) * t.originalAmount;
+        const formattedOri = oriVal % 1 === 0 ? oriVal : oriVal.toFixed(2);
+        return `${name}:${Math.round(ntdVal)}(${formattedOri})`;
+      }
+      
+      return `${name}:${Math.round(ntdVal)}`;
+    })
+    .join(';');
+};
+
+/**
+ * 反序列化分帳細節 (String -> Record)
+ * 支援解析「姓名:台幣(外幣)」或「姓名:台幣」
+ */
+const deserializeCustomSplits = (splitStr: string, members: Member[]): Record<string, number> => {
+  const result: Record<string, number> = {};
+  if (!splitStr) return result;
+
+  splitStr.split(';').forEach(pair => {
+    const [name, valPart] = pair.split(':');
+    if (name && valPart) {
+      // 移除括號及其內容，提取純台幣金額
+      // 例如 "800(20.5)" -> "800"
+      const ntdStr = valPart.split('(')[0];
+      const member = members.find(m => m.name === name.trim());
+      const id = member ? member.id : name.trim();
+      result[id] = parseFloat(ntdStr);
+    }
+  });
+  return result;
+};
+
+/**
  * 從「子帳本」抓取交易紀錄
  */
-export const fetchTransactionsFromSheet = async (url: string): Promise<Partial<Transaction>[]> => {
+export const fetchTransactionsFromSheet = async (url: string, members: Member[] = []): Promise<Partial<Transaction>[]> => {
   if (!url) return [];
   try {
     const response = await fetch(url, { cache: 'no-store' });
     const data = await response.json();
     const records = Array.isArray(data) ? data : (data.transactions || []);
     
-    return records.map((row: any) => ({
-      id: `sheet-${row.rowIndex}`,
-      rowIndex: row.rowIndex,
-      date: parseLocalDate(row['日期']),
-      merchant: row['消費店家'] || '',
-      item: row['消費細節'] || '',
-      category: row['分類'] as Category,
-      type: row['帳務類型'] as '公帳' | '私帳',
-      payerId: row['付款人'] || '', 
-      currency: row['原始幣別'] || '',
-      originalAmount: Number(row['原始金額']) || 0,
-      ntdAmount: Number(row['台幣金額']) || 0,
-      isSplit: row['是否拆帳'] === '是' || row['是否拆帳'] === true,
-      splitWith: row['參與成員'] ? String(row['參與成員']).split(',').map(s => s.trim()) : [],
-    }));
+    return records.map((row: any) => {
+      const splitDetailStr = row['分帳細節'] || '';
+      const customSplits = deserializeCustomSplits(splitDetailStr, members);
+      
+      return {
+        id: `sheet-${row.rowIndex}`,
+        rowIndex: row.rowIndex,
+        date: parseLocalDate(row['日期']),
+        merchant: row['消費店家'] || '',
+        item: row['消費細節'] || '',
+        category: row['分類'] as Category,
+        type: row['帳務類型'] as '公帳' | '私帳',
+        payerId: row['付款人'] || '', 
+        currency: row['原始幣別'] || '',
+        originalAmount: Number(row['原始金額']) || 0,
+        ntdAmount: Number(row['台幣金額']) || 0,
+        isSplit: row['是否拆帳'] === '是' || row['是否拆帳'] === true,
+        splitWith: row['參與成員'] ? String(row['參與成員']).split(',').map(s => s.trim()) : [],
+        customSplits: Object.keys(customSplits).length > 0 ? customSplits : undefined,
+        exchangeRate: row['匯率'] || 1 // 如果 sheet 有紀錄匯率就讀取
+      };
+    });
   } catch (error) {
     console.error('Fetch transactions failed:', error);
     return [];
@@ -91,7 +144,8 @@ export const saveToGoogleSheet = async (url: string, t: Transaction, members: Me
     '原始金額': t.originalAmount,
     '台幣金額': t.ntdAmount,
     '是否拆帳': t.isSplit ? '是' : '否',
-    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(',')
+    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(','),
+    '分帳細節': serializeCustomSplits(t, members)
   };
   try {
     await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
@@ -113,7 +167,8 @@ export const updateTransactionInSheet = async (url: string, t: Transaction, memb
     '原始金額': t.originalAmount,
     '台幣金額': t.ntdAmount,
     '是否拆帳': t.isSplit ? '是' : '否',
-    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(',')
+    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(','),
+    '分帳細節': serializeCustomSplits(t, members)
   };
   try {
     await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });

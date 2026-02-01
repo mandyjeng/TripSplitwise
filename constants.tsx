@@ -44,7 +44,7 @@ export const CATEGORY_COLORS: Record<Category, string> = {
 };
 
 export const TABS = [
-  { id: 'overview', label: '總覽', icon: <LayoutDashboard size={20} /> },
+  { id: 'overview', label: '記帳', icon: <LayoutDashboard size={20} /> },
   { id: 'details', label: '明細', icon: <ListOrdered size={20} /> },
   { id: 'settings', label: '設定', icon: <SettingsIcon size={20} /> },
 ];
