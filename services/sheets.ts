@@ -8,7 +8,6 @@ const robustFetch = async (url: string, options: RequestInit = {}, retries = 2):
   try {
     const response = await fetch(url, {
       ...options,
-      // 確保遵循重定向，這是 Google Apps Script 的必要條件
       redirect: 'follow',
     });
     if (!response.ok) {
@@ -51,12 +50,11 @@ export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
         sourceUrl: String(sourceUrl).trim(),
         currency: String(l['幣別'] || l.currency || 'TWD'),
         exchangeRate: Number(l['匯率'] || l.exchangeRate) || 1,
-        members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()) : []
+        members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()).filter(Boolean) : []
       };
     });
   } catch (error) {
     console.error('[SheetService] fetchManagementConfig failed:', error);
-    // 拋出具體錯誤以便 UI 捕捉
     throw new Error('無法連線至雲端管理表，請檢查網路或腳本權限設定。');
   }
 };
@@ -70,22 +68,39 @@ const parseLocalDate = (dateStr: string): string => {
 
 /**
  * 序列化分帳細節 (Record -> String)
+ * 現在會處理均分模式，自動產生金額明細
  */
 const serializeCustomSplits = (t: Transaction, members: Member[]): string => {
-  const splits = t.customSplits;
-  if (!splits || Object.keys(splits).length === 0) return '';
+  if (!t.isSplit || !t.splitWith || t.splitWith.length === 0) return '';
   
-  return Object.entries(splits)
-    .map(([id, ntdVal]) => {
-      const name = members?.find(m => m.id === id)?.name || id;
-      if (t.currency !== 'TWD' && t.ntdAmount > 0) {
-        const oriVal = (ntdVal / t.ntdAmount) * t.originalAmount;
-        const formattedOri = oriVal % 1 === 0 ? oriVal : oriVal.toFixed(2);
-        return `${name}:${Math.round(ntdVal)}(${formattedOri})`;
-      }
-      return `${name}:${Math.round(ntdVal)}`;
-    })
-    .join(';');
+  const splitWithIds = t.splitWith.filter(id => id && String(id).trim() !== '');
+  const count = splitWithIds.length;
+  
+  // 決定資料源：有手動金額用手動金額，否則計算均分金額
+  const splitEntries = splitWithIds.map(id => {
+    let ntdVal = 0;
+    if (t.customSplits && t.customSplits[id] !== undefined) {
+      ntdVal = t.customSplits[id];
+    } else {
+      ntdVal = t.ntdAmount / count;
+    }
+
+    const name = members?.find(m => m.id === id)?.name || id;
+    
+    // 格式化：Name:NTD(Original)
+    if (t.currency !== 'TWD' && t.ntdAmount > 0) {
+      const oriVal = t.customSplits && t.customSplits[id] !== undefined
+        ? (t.customSplits[id] / t.ntdAmount) * t.originalAmount
+        : t.originalAmount / count;
+      
+      const formattedOri = oriVal % 1 === 0 ? oriVal : parseFloat(oriVal.toFixed(2));
+      return `${name}:${Math.round(ntdVal)}(${formattedOri})`;
+    }
+    
+    return `${name}:${Math.round(ntdVal)}`;
+  });
+
+  return splitEntries.join(';');
 };
 
 /**
@@ -103,7 +118,7 @@ const deserializeCustomSplits = (splitStr: string, members: Member[]): Record<st
       const ntdStr = valPart.split('(')[0];
       const member = members.find(m => m.name === name.trim());
       const id = member ? member.id : name.trim();
-      result[id] = parseFloat(ntdStr) || 0;
+      if (id && id !== '') result[id] = parseFloat(ntdStr) || 0;
     }
   });
   return result;
@@ -136,7 +151,7 @@ export const fetchTransactionsFromSheet = async (url: string, members: Member[] 
         originalAmount: Number(row['原始金額']) || 0,
         ntdAmount: Number(row['台幣金額']) || 0,
         isSplit: row['是否拆帳'] === '是' || row['是否拆帳'] === true,
-        splitWith: row['參與成員'] ? String(row['參與成員']).split(',').map(s => s.trim()) : [],
+        splitWith: row['參與成員'] ? String(row['參與成員']).split(',').map(s => s.trim()).filter(Boolean) : [],
         customSplits: Object.keys(customSplits).length > 0 ? customSplits : undefined,
         exchangeRate: row['匯率'] || 1
       };
@@ -149,12 +164,10 @@ export const fetchTransactionsFromSheet = async (url: string, members: Member[] 
 
 /**
  * 向 Google Sheet 發送資料 (使用 POST)
- * GAS doPost 建議使用 no-cors 模式來避免 preflight 複雜性
  */
 const sendPostToSheet = async (url: string, payload: any) => {
   if (!url) return;
   try {
-    // GAS 接收 JSON 且避免 Preflight 的最佳實踐是 Content-Type: text/plain
     await fetch(url, {
       method: 'POST',
       mode: 'no-cors',
@@ -170,6 +183,14 @@ const sendPostToSheet = async (url: string, payload: any) => {
 };
 
 export const saveToGoogleSheet = async (url: string, t: Transaction, members: Member[]) => {
+  const cleanSplitWith = (t.splitWith || [])
+    .filter(id => id && String(id).trim() !== '')
+    .map(id => {
+      const found = members.find(m => m.id === id);
+      return found ? found.name : id;
+    })
+    .filter(name => name && String(name).trim() !== '' && name !== 'undefined' && name !== 'null');
+
   const payload = {
     type: 'ADD_TRANSACTION',
     '日期': t.date,
@@ -182,7 +203,7 @@ export const saveToGoogleSheet = async (url: string, t: Transaction, members: Me
     '原始金額': t.originalAmount,
     '台幣金額': t.ntdAmount,
     '是否拆帳': t.isSplit ? '是' : '否',
-    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(','),
+    '參與成員': cleanSplitWith.join(','),
     '分帳細節': serializeCustomSplits(t, members)
   };
   await sendPostToSheet(url, payload);
@@ -190,6 +211,15 @@ export const saveToGoogleSheet = async (url: string, t: Transaction, members: Me
 
 export const updateTransactionInSheet = async (url: string, t: Transaction, members: Member[]) => {
   if (!t.rowIndex) return;
+  
+  const cleanSplitWith = (t.splitWith || [])
+    .filter(id => id && String(id).trim() !== '')
+    .map(id => {
+      const found = members.find(m => m.id === id);
+      return found ? found.name : id;
+    })
+    .filter(name => name && String(name).trim() !== '' && name !== 'undefined' && name !== 'null');
+
   const payload = {
     type: 'UPDATE_TRANSACTION',
     rowIndex: t.rowIndex,
@@ -203,7 +233,7 @@ export const updateTransactionInSheet = async (url: string, t: Transaction, memb
     '原始金額': t.originalAmount,
     '台幣金額': t.ntdAmount,
     '是否拆帳': t.isSplit ? '是' : '否',
-    '參與成員': t.splitWith.map(id => members.find(m => m.id === id)?.name || id).join(','),
+    '參與成員': cleanSplitWith.join(','),
     '分帳細節': serializeCustomSplits(t, members)
   };
   await sendPostToSheet(url, payload);
