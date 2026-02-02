@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { AppState, Ledger } from '../types';
-import { Cloud, UserCheck, Palette, RefreshCw, Sparkles, Database, ChevronRight, ExternalLink, Map } from 'lucide-react';
+import { Cloud, UserCheck, Palette, RefreshCw, Sparkles, Database, ChevronRight, ExternalLink, Map, User } from 'lucide-react';
 
 interface SettingsProps {
   state: AppState;
@@ -76,7 +76,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
                   )}
                 </button>
 
-                {/* 右側：簡約圖示連結 (移除外框，僅保留圖示) */}
+                {/* 右側：簡約圖示連結 */}
                 {l.sourceUrl && (
                   <a 
                     href={l.sourceUrl} 
@@ -102,28 +102,50 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
         </div>
       </section>
 
-      {/* 使用者切換 - 增加 ID 以利跳轉定位 */}
+      {/* 使用者切換 - 視覺風格同步為帳本列表形式 */}
       <section id="user-selection-section" className="bg-white comic-border rounded-[2.5rem] p-6 sm:p-8 comic-shadow scroll-mt-24 transition-all duration-500">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-            <UserCheck size={20} />
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+            <UserCheck size={24} />
           </div>
-          <h2 className="text-lg font-black italic">目前登入身份</h2>
+          <h2 className="text-xl font-black italic">目前登入身份</h2>
         </div>
-        <div className="flex flex-wrap gap-2.5">
-          {state.members.map(m => (
-            <button 
-              key={m.id}
-              onClick={() => updateState({ currentUser: m.id })}
-              className={`px-6 py-3.5 rounded-2xl font-black text-sm border-[3px] transition-all ${
-                state.currentUser === m.id 
-                  ? 'bg-black text-white border-black shadow-sm' 
-                  : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
-              }`}
-            >
-              {m.name}
-            </button>
-          ))}
+        
+        <div className="space-y-4">
+          <div className="px-1 mb-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">切換冒險隊員</label>
+          </div>
+
+          {state.members.map(m => {
+            const isActive = state.currentUser === m.id;
+            return (
+              <button 
+                key={m.id}
+                onClick={() => updateState({ currentUser: m.id })}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border-[3px] transition-all ${
+                  isActive 
+                    ? 'bg-[#F6D32D] border-black shadow-sm' 
+                    : 'bg-slate-50 border-slate-100 hover:border-black/20'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  {/* 使用者頭像區塊，模擬帳本圖示 */}
+                  <div className={`w-12 h-12 border-2 border-black rounded-xl flex items-center justify-center transition-colors ${isActive ? 'bg-white text-black' : 'bg-slate-200 text-slate-400'}`}>
+                    <User size={24} />
+                  </div>
+                  <div className="text-left">
+                    <div className={`font-black text-base ${isActive ? 'text-black' : 'text-slate-500'}`}>{m.name}</div>
+                    <div className={`text-[10px] font-bold uppercase tracking-tight opacity-60 ${isActive ? 'text-black' : 'text-slate-400'}`}>
+                      {isActive ? '目前使用中' : '冒險隊員'}
+                    </div>
+                  </div>
+                </div>
+                {isActive && (
+                  <Sparkles size={18} className="text-black animate-pulse" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </section>
 
