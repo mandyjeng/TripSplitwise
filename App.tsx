@@ -185,26 +185,18 @@ const App: React.FC = () => {
    * 修正後的刪除函式
    */
   const onDeleteTransaction = async (id: string) => {
-    // 1. 直接從當前 state 尋找目標交易，確保能讀到最新的 rowIndex
     const target = state.transactions.find(t => t.id === id);
-    
     if (!target) {
       console.error('[App] 刪除失敗：找不到該筆交易', id);
       return;
     }
     
-    setIsMutating(true); // 立即觸發星星遮罩
-    
+    setIsMutating(true);
     try {
-      // 2. 確定雲端 URL
       const ledgerUrl = state.sheetUrl || state.ledgers.find(l => l.id === state.activeLedgerId)?.url;
-      
       if (ledgerUrl && typeof target.rowIndex === 'number') {
-        // 3. 執行雲端刪除
         await deleteTransactionFromSheet(ledgerUrl, target.rowIndex);
       }
-
-      // 4. 更新本地狀態移除該筆
       setState(prev => ({
         ...prev,
         transactions: prev.transactions.filter(t => t.id !== id)
@@ -213,7 +205,7 @@ const App: React.FC = () => {
       console.error('[App] 刪除過程出錯:', err);
       alert('雲端刪除失敗，請確認網路連線。');
     } finally {
-      setIsMutating(false); // 關閉遮罩
+      setIsMutating(false);
     }
   };
 
@@ -247,23 +239,21 @@ const App: React.FC = () => {
 
   return (
     <div className={`max-w-md mx-auto min-h-screen flex flex-col relative overflow-x-hidden theme-${state.theme || 'comic'}`}>
-      {/* 載入中遮罩 */}
       {isGlobalLocked && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center gap-5">
             <Sparkles size={48} className="text-[#F6D32D] animate-bounce" />
-            <div className="text-center font-black text-lg">{getLoadingMessage()}</div>
+            <div className="text-center font-black text-xl tracking-tight">{getLoadingMessage()}</div>
           </div>
         </div>
       )}
 
-      {/* 異常提示 */}
       {globalError && (
         <div className="mx-6 mt-4 p-4 bg-[#FEF2F2] border-[3px] border-[#E64A4A] rounded-2xl flex items-start gap-3 animate-in slide-in-from-top duration-300">
           <AlertCircle className="text-[#E64A4A] shrink-0 mt-0.5" size={20} />
           <div className="flex-1">
-            <p className="text-[13px] font-black text-[#E64A4A] leading-tight mb-2">{globalError}</p>
-            <button onClick={() => loadManagement()} className="text-[11px] font-black bg-white border-2 border-black px-3 py-1 rounded-lg active:translate-y-0.5 transition-all">重新載入</button>
+            <p className="text-sm font-black text-[#E64A4A] leading-tight mb-2">{globalError}</p>
+            <button onClick={() => loadManagement()} className="text-xs font-black bg-white border-2 border-black px-4 py-1.5 rounded-lg active:translate-y-0.5 transition-all">重新載入</button>
           </div>
           <button onClick={() => setGlobalError(null)} className="text-[#E64A4A] opacity-50"><X size={18} /></button>
         </div>
@@ -275,9 +265,9 @@ const App: React.FC = () => {
             <h1 className="text-4xl font-black text-slate-900 leading-tight italic tracking-tighter">
               {activeLedger?.name || '載入中...'} 
             </h1>
-            <div className="flex items-center gap-2 text-slate-400">
+            <div className="flex items-center gap-2 text-slate-500">
                <MapPin size={12} className="text-blue-500 fill-current opacity-80" />
-               <p className="text-[11px] font-black uppercase tracking-[0.25em] leading-none">Adventure Journal</p>
+               <p className="text-xs font-black uppercase tracking-[0.25em] leading-none opacity-80">Adventure Journal</p>
             </div>
           </div>
           
@@ -330,14 +320,14 @@ const App: React.FC = () => {
               setActiveTab(tab.id);
               setShowNav(true);
             }} 
-            className={`flex flex-col items-center gap-1 transition-all flex-1 py-2.5 rounded-full ${
+            className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-3 rounded-full ${
               activeTab === tab.id 
                 ? 'bg-black text-white' 
                 : 'text-slate-300 hover:text-slate-400'
             }`}
           >
             {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 20 })}
-            <span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+            <span className="text-xs font-black uppercase tracking-widest leading-none">{tab.label}</span>
           </button>
         ))}
       </nav>

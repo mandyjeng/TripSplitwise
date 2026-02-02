@@ -25,19 +25,14 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
     });
 
     state.transactions.forEach(t => {
-      // 付款人先墊錢（增加資產）
       balances[t.payerId] += t.ntdAmount;
-
       if (t.isSplit) {
         if (t.customSplits && Object.keys(t.customSplits).length > 0) {
-          // --- 手動指定模式 ---
           Object.entries(t.customSplits).forEach(([mid, amount]) => {
-            // 該成員應付金額（減少資產/增加消費）
             balances[mid] -= amount;
             consumptions[mid] += amount;
           });
         } else {
-          // --- 均分模式 ---
           const splitCount = t.splitWith.length;
           if (splitCount > 0) {
             const perPerson = t.ntdAmount / splitCount;
@@ -48,13 +43,10 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
           }
         }
       } else {
-        // --- 非拆帳項目（個人消費） ---
-        // 通常 payerId 就是消費人
         balances[t.payerId] -= t.ntdAmount;
         consumptions[t.payerId] += t.ntdAmount;
       }
     });
-
     return { balances, consumptions };
   };
 
@@ -67,7 +59,6 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
 
   return (
     <div className="space-y-10 pb-16">
-      {/* 1. 豬豬 AI 智能記帳區塊 */}
       <section className="mt-2">
         <AIInput 
           onAddTransaction={onAddTransaction} 
@@ -79,32 +70,30 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         />
       </section>
 
-      {/* 2. 支出概況 */}
-      <section className="grid grid-cols-2 gap-3">
-        <div className="bg-[#E64A4A] p-4 rounded-3xl text-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-          <div className="flex items-center gap-1.5 mb-1 opacity-70">
-            <TrendingUp size={12} />
-            <span className="text-[9px] font-black uppercase tracking-widest">總支出</span>
+      <section className="grid grid-cols-2 gap-4">
+        <div className="bg-[#E64A4A] p-5 rounded-3xl text-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-1.5 mb-2 opacity-80">
+            <TrendingUp size={14} />
+            <span className="text-[11px] font-black uppercase tracking-widest">總支出</span>
           </div>
-          <div className="text-xl font-black leading-none italic">NT$ {Math.round(totalExpense).toLocaleString()}</div>
+          <div className="text-2xl font-black leading-none italic">NT$ {Math.round(totalExpense).toLocaleString()}</div>
         </div>
-        <div className="bg-[#F6D32D] p-4 rounded-3xl text-black border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-          <div className="flex items-center gap-1.5 mb-1 opacity-70">
-            <ShoppingBag size={12} />
-            <span className="text-[9px] font-black uppercase tracking-widest">我的花費</span>
+        <div className="bg-[#F6D32D] p-5 rounded-3xl text-black border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-1.5 mb-2 opacity-80">
+            <ShoppingBag size={14} />
+            <span className="text-[11px] font-black uppercase tracking-widest">我的花費</span>
           </div>
-          <div className="text-xl font-black leading-none italic">NT$ {Math.round(myTotalCost).toLocaleString()}</div>
+          <div className="text-2xl font-black leading-none italic">NT$ {Math.round(myTotalCost).toLocaleString()}</div>
         </div>
       </section>
 
-      {/* 3. 最近動態 */}
       <section>
-        <div className="flex justify-between items-center mb-4 px-1">
-          <h3 className="text-lg font-black text-black flex items-center gap-2 italic">
-            <ReceiptText size={18} className="text-blue-500" /> 最近動態
+        <div className="flex justify-between items-center mb-5 px-1">
+          <h3 className="text-xl font-black text-black flex items-center gap-2 italic">
+            <ReceiptText size={20} className="text-blue-500" /> 最近動態
           </h3>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {recentTransactions.map(t => {
             const payer = state.members.find(m => m.id === t.payerId);
             const isAllSplit = t.isSplit && t.splitWith.length === state.members.length;
@@ -114,41 +103,40 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
               <div 
                 key={t.id} 
                 onClick={() => onEditTransaction(t.id)}
-                className="bg-white border-2 border-black p-4 rounded-2xl flex items-center gap-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:scale-[0.98] transition-all cursor-pointer"
+                className="bg-white border-2 border-black p-5 rounded-2xl flex items-center gap-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <div className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                  {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 16 })}
+                <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
+                  {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 18 })}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-black text-sm text-black truncate flex items-center gap-2">
+                  <div className="font-black text-sm text-black truncate flex items-center gap-2 mb-0.5">
                     {t.merchant}
-                    {t.type === '私帳' && <span className="text-[8px] px-1.5 py-0.5 bg-slate-100 border border-black rounded uppercase">Private</span>}
+                    {t.type === '私帳' && <span className="text-[10px] px-2 py-0.5 bg-slate-100 border border-black rounded uppercase tracking-tighter">Private</span>}
                   </div>
-                  <div className="text-[10px] font-bold text-slate-400 truncate mb-1">{t.item}</div>
+                  <div className="text-xs font-bold text-slate-400 truncate mb-2">{t.item}</div>
                   
-                  {/* 付款人與參與成員標籤區 */}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <div className="flex items-center gap-1 text-[9px] font-black text-blue-500">
-                      <User size={10} />
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <div className="flex items-center gap-1 text-[11px] font-black text-blue-500">
+                      <User size={11} />
                       <span>{payer?.name || t.payerId}</span>
                     </div>
                     {t.isSplit && t.type === '公帳' && (
-                      <div className="flex items-center gap-1 text-[9px] font-black text-slate-400">
-                        <Users size={10} />
+                      <div className="flex items-center gap-1 text-[11px] font-black text-slate-400">
+                        <Users size={11} />
                         {isAllSplit ? (
-                          <span className="bg-slate-100 text-slate-600 px-1 py-0.5 rounded border border-slate-200 text-[7px] leading-none">ALL</span>
+                          <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 text-[9px] leading-none uppercase">ALL</span>
                         ) : (
-                          <span className="truncate max-w-[100px]">{splitNames}</span>
+                          <span className="truncate max-w-[120px]">{splitNames}</span>
                         )}
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-[10px] font-bold text-slate-400 italic mb-0.5">
+                  <div className="text-xs font-bold text-slate-400 italic mb-1">
                     {t.originalAmount.toLocaleString()} {t.currency}
                   </div>
-                  <div className="font-black text-base text-black italic leading-none">
+                  <div className="font-black text-lg text-black italic leading-none">
                     NT$ {Math.round(t.ntdAmount).toLocaleString()}
                   </div>
                 </div>
@@ -158,18 +146,17 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         </div>
       </section>
 
-      {/* 4. Balance Sheet / 結算單 */}
       <section>
-        <div className="flex justify-between items-center mb-5 px-1">
-          <h2 className="text-xl font-black text-black flex items-center gap-2 italic">
-            <FileSpreadsheet size={20} className="text-[#1FA67A]" /> Balance Sheet
+        <div className="flex justify-between items-center mb-6 px-1">
+          <h2 className="text-2xl font-black text-black flex items-center gap-2 italic">
+            <FileSpreadsheet size={24} className="text-[#1FA67A]" /> Balance Sheet
           </h2>
-          <div className="bg-blue-500 text-white text-[9px] font-black px-2.5 py-1 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase tracking-widest">
+          <div className="bg-blue-500 text-white text-xs font-black px-3 py-1.5 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase tracking-widest">
             Ledger
           </div>
         </div>
         
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-8">
           {state.members.map(m => {
             const balance = balances[m.id];
             const isPositive = balance > 0;
@@ -183,40 +170,40 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
             const statusLabel = isPositive ? 'CREDIT' : isZero ? 'EVEN' : 'DEBT';
 
             return (
-              <div key={m.id} className={`relative border-2 border-black rounded-[2.5rem] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all hover:-translate-y-1 ${cardBg}`}>
-                <div className="absolute -top-2 -right-3 text-black/[0.03] font-black text-7xl italic pointer-events-none uppercase tracking-tighter select-none">
+              <div key={m.id} className={`relative border-2 border-black rounded-[3rem] p-7 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all hover:-translate-y-1 ${cardBg}`}>
+                <div className="absolute -top-3 -right-4 text-black/[0.04] font-black text-8xl italic pointer-events-none uppercase tracking-tighter select-none">
                   {statusLabel}
                 </div>
                 {isMe && (
-                  <div className="absolute top-5 right-0 bg-blue-500 text-white text-[9px] font-black px-3 py-1 rounded-l-xl z-20 border-y-2 border-l-2 border-black">
+                  <div className="absolute top-6 right-0 bg-blue-500 text-white text-xs font-black px-4 py-1.5 rounded-l-2xl z-20 border-y-2 border-l-2 border-black">
                     YOU
                   </div>
                 )}
-                <div className="relative z-10 space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-[#F6D32D] border-2 border-black rounded-2xl flex items-center justify-center text-black font-black text-2xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rotate-[-3deg] shrink-0">
+                <div className="relative z-10 space-y-6">
+                  <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 bg-[#F6D32D] border-2 border-black rounded-2xl flex items-center justify-center text-black font-black text-3xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-3deg] shrink-0">
                       {m.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-black text-xl text-black truncate mb-2.5">{m.name}</div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-black/5 rounded-full overflow-hidden border border-black/10">
+                      <div className="font-black text-2xl text-black truncate mb-3">{m.name}</div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 h-2.5 bg-black/5 rounded-full overflow-hidden border border-black/10">
                            <div className="h-full bg-[#1FA67A] rounded-full transition-all duration-1000" style={{ width: `${consumptionPercent}%` }} />
                         </div>
-                        <span className="text-[10px] font-black text-slate-400 italic">{Math.round(consumptionPercent)}%</span>
+                        <span className="text-xs font-black text-slate-400 italic shrink-0">{Math.round(consumptionPercent)}%</span>
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white border-2 border-black rounded-2xl p-3.5 flex flex-col items-center justify-center">
-                       <span className="text-[9px] font-black text-slate-400 uppercase mb-1.5 italic">結算淨額</span>
-                       <div className={`text-xl font-black italic ${statusTextColor}`}>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white border-2 border-black rounded-2xl p-4 flex flex-col items-center justify-center">
+                       <span className="text-[11px] font-black text-slate-400 uppercase mb-2 italic tracking-wider">結算淨額</span>
+                       <div className={`text-2xl font-black italic ${statusTextColor}`}>
                           {isPositive ? '+' : ''}{Math.round(balance).toLocaleString()}
                        </div>
                     </div>
-                    <div className="bg-slate-50 border-2 border-black rounded-2xl p-3.5 flex flex-col items-center justify-center">
-                       <span className="text-[9px] font-black text-slate-400 uppercase mb-1.5 italic">個人消費</span>
-                       <div className="text-xl font-black text-black italic">
+                    <div className="bg-slate-50 border-2 border-black rounded-2xl p-4 flex flex-col items-center justify-center">
+                       <span className="text-[11px] font-black text-slate-400 uppercase mb-2 italic tracking-wider">個人消費</span>
+                       <div className="text-2xl font-black text-black italic">
                           {Math.round(consumption).toLocaleString()}
                        </div>
                     </div>
