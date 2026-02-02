@@ -13,7 +13,6 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagement, onSwitchLedger }) => {
   const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
 
-  // 渲染帳本圖示：如果名稱是數字開頭（通常是年份），則顯示地圖圖示
   const renderLedgerIcon = (name: string, isActive: boolean) => {
     const firstChar = name.charAt(0);
     const isNumeric = /^\d$/.test(firstChar);
@@ -27,7 +26,6 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
 
   return (
     <div className="space-y-8 pb-32">
-      {/* 帳本切換中心 */}
       <section className="bg-white comic-border rounded-[2.5rem] p-6 sm:p-8 comic-shadow">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -46,17 +44,16 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
 
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1 mb-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">可切換的行程</label>
-            <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">共 {state.ledgers.length} 個</span>
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">可切換的行程</label>
+            <span className="text-xs font-black text-blue-500 bg-blue-50 px-3 py-1 rounded-full">共 {state.ledgers.length} 個</span>
           </div>
           
           {state.ledgers.length > 0 ? (
             state.ledgers.map(l => (
               <div key={l.id} className="flex items-center gap-1">
-                {/* 左側：主切換按鈕 */}
                 <button 
                   onClick={() => onSwitchLedger(l)}
-                  className={`flex-1 flex items-center justify-between p-4 rounded-2xl border-[3px] transition-all ${
+                  className={`flex-1 flex items-center justify-between p-5 rounded-2xl border-[3px] transition-all ${
                     state.activeLedgerId === l.id 
                       ? 'bg-[#F6D32D] border-black shadow-sm' 
                       : 'bg-slate-50 border-slate-100 hover:border-black/20'
@@ -66,7 +63,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
                     {renderLedgerIcon(l.name, state.activeLedgerId === l.id)}
                     <div className="text-left">
                       <div className={`font-black text-base ${state.activeLedgerId === l.id ? 'text-black' : 'text-slate-500'}`}>{l.name}</div>
-                      <div className={`text-[10px] font-bold uppercase tracking-tight opacity-60 ${state.activeLedgerId === l.id ? 'text-black' : 'text-slate-400'}`}>
+                      <div className={`text-[11px] font-bold uppercase tracking-tight opacity-60 ${state.activeLedgerId === l.id ? 'text-black' : 'text-slate-400'}`}>
                         {l.currency} @ {l.exchangeRate}
                       </div>
                     </div>
@@ -76,7 +73,6 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
                   )}
                 </button>
 
-                {/* 右側：簡約圖示連結 */}
                 {l.sourceUrl && (
                   <a 
                     href={l.sourceUrl} 
@@ -85,7 +81,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
                     title="開啟原始試算表"
                     className="p-3 text-slate-300 hover:text-blue-500 transition-colors flex items-center justify-center"
                   >
-                    <ExternalLink size={20} />
+                    <ExternalLink size={22} />
                   </a>
                 )}
               </div>
@@ -102,7 +98,6 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
         </div>
       </section>
 
-      {/* 使用者切換 - 視覺風格同步為帳本列表形式 */}
       <section id="user-selection-section" className="bg-white comic-border rounded-[2.5rem] p-6 sm:p-8 comic-shadow scroll-mt-24 transition-all duration-500">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
@@ -113,7 +108,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
         
         <div className="space-y-4">
           <div className="px-1 mb-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">切換冒險隊員</label>
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">切換冒險隊員</label>
           </div>
 
           {state.members.map(m => {
@@ -122,20 +117,19 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
               <button 
                 key={m.id}
                 onClick={() => updateState({ currentUser: m.id })}
-                className={`w-full flex items-center justify-between p-4 rounded-2xl border-[3px] transition-all ${
+                className={`w-full flex items-center justify-between p-5 rounded-2xl border-[3px] transition-all ${
                   isActive 
                     ? 'bg-[#F6D32D] border-black shadow-sm' 
                     : 'bg-slate-50 border-slate-100 hover:border-black/20'
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  {/* 使用者頭像區塊，模擬帳本圖示 */}
                   <div className={`w-12 h-12 border-2 border-black rounded-xl flex items-center justify-center transition-colors ${isActive ? 'bg-white text-black' : 'bg-slate-200 text-slate-400'}`}>
                     <User size={24} />
                   </div>
                   <div className="text-left">
                     <div className={`font-black text-base ${isActive ? 'text-black' : 'text-slate-500'}`}>{m.name}</div>
-                    <div className={`text-[10px] font-bold uppercase tracking-tight opacity-60 ${isActive ? 'text-black' : 'text-slate-400'}`}>
+                    <div className={`text-[11px] font-bold uppercase tracking-tight opacity-60 ${isActive ? 'text-black' : 'text-slate-400'}`}>
                       {isActive ? '目前使用中' : '冒險隊員'}
                     </div>
                   </div>
@@ -149,24 +143,23 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
         </div>
       </section>
 
-      {/* 介面風格 */}
       <section className="bg-white comic-border rounded-[2.5rem] p-6 sm:p-8 comic-shadow">
         <div className="flex items-center gap-3 mb-6">
-          <Palette size={20} />
+          <Palette size={24} className="text-indigo-500" />
           <h2 className="text-lg font-black italic">視覺風格切換</h2>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <button 
             onClick={() => updateState({ theme: 'comic' })} 
-            className={`py-4 rounded-2xl border-[3px] font-black text-sm transition-all ${state.theme === 'comic' ? 'bg-[#F6D32D] border-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-300'}`}
+            className={`py-5 rounded-2xl border-[3px] font-black text-sm transition-all ${state.theme === 'comic' ? 'bg-[#F6D32D] border-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-300'}`}
           >
             經典漫畫
           </button>
           <button 
             onClick={() => updateState({ theme: 'fresh' })} 
-            className={`py-4 rounded-2xl border-[3px] font-black text-sm transition-all ${state.theme === 'fresh' ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-300'}`}
+            className={`py-5 rounded-2xl border-[3px] font-black text-sm transition-all ${state.theme === 'fresh' ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg scale-[1.02]' : 'bg-slate-50 border-slate-100 text-slate-300'}`}
           >
-            清新簡約
+            洗鍊現代
           </button>
         </div>
       </section>
