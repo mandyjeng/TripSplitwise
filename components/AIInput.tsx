@@ -163,10 +163,14 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     setManualSplits(prev => ({ ...prev, [memberId]: inputVal }));
     const ntdValue = customSplitCurrency === 'TWD' ? inputVal : Math.round(inputVal * currentEffectiveRate);
     const newCustomSplits = { ...pendingRecord.customSplits, [memberId]: ntdValue };
+    
+    // 計算有效的分帳人數（金額大於0的人）
+    const effectiveCount = Object.values(newCustomSplits).filter(v => v > 0).length;
+    
     setPendingRecord({
       ...pendingRecord,
       customSplits: newCustomSplits,
-      type: (Object.values(newCustomSplits).filter(v => v > 0).length === 1 ? '私帳' : '公帳') as any
+      type: (effectiveCount === 1 ? '私帳' : '公帳') as any
     });
   };
 
@@ -183,7 +187,11 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
       initSplits[id] = perPersonNtd;
       initManual[id] = perPersonNtd / currentEffectiveRate;
     });
-    setPendingRecord({ ...pendingRecord, customSplits: initSplits });
+    setPendingRecord({ 
+      ...pendingRecord, 
+      customSplits: initSplits,
+      type: (splitWith.length === 1 ? '私帳' : '公帳') as any
+    });
     setManualSplits(initManual);
   };
 
@@ -267,7 +275,11 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               </div>
 
               <div className="bg-slate-100 p-1 rounded-xl flex border-2 border-black">
-                <button onClick={() => setSplitMode('equal')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'equal' ? 'bg-black text-white shadow-sm' : 'text-slate-400'}`}><Users size={14} /> 均分</button>
+                <button onClick={() => {
+                  setSplitMode('equal');
+                  const s = pendingRecord.splitWith || [];
+                  setPendingRecord({ ...pendingRecord, type: s.length === 1 ? '私帳' : '公帳' });
+                }} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'equal' ? 'bg-black text-white shadow-sm' : 'text-slate-400'}`}><Users size={14} /> 均分</button>
                 <button onClick={switchToCustomMode} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}><Calculator size={14} /> 手動</button>
               </div>
 
@@ -294,7 +306,18 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                         <div className="flex items-center gap-2">
                           <button onClick={() => { 
                             const s = pendingRecord.splitWith || []; 
-                            setPendingRecord({...pendingRecord, splitWith: s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '')}); 
+                            const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
+                            
+                            // 若切換後剩下一人，自動切換為私帳；多於一人切換為公帳
+                            // 僅在均分模式下依賴 splitWith 人數
+                            const newType = (splitMode === 'equal' && newSplitWith.length === 1) ? '私帳' : 
+                                           (splitMode === 'equal' && newSplitWith.length > 1) ? '公帳' : pendingRecord.type;
+
+                            setPendingRecord({
+                              ...pendingRecord, 
+                              splitWith: newSplitWith,
+                              type: newType as any
+                            }); 
                           }} className={`flex-1 flex justify-between p-2.5 rounded-xl border-2 ${isSelected ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-slate-100 text-slate-300'}`}>
                             <span className="text-sm font-black">{m.name}</span>
                             {splitMode === 'equal' && isSelected && <Check size={16} className="text-[#1FA67A]" />}

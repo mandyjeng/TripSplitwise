@@ -116,10 +116,14 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     setManualSplits(prev => ({ ...prev, [memberId]: inputVal }));
     const ntdValue = editSplitCurrency === 'TWD' ? inputVal : Math.round(inputVal * currentEffectiveRate);
     const newCustomSplits = { ...(editingItem.customSplits || {}), [memberId]: ntdValue };
+    
+    // 計算有效分帳人數
+    const effectiveCount = Object.values(newCustomSplits).filter(v => v > 0).length;
+
     setEditingItem({
       ...editingItem,
       customSplits: newCustomSplits,
-      type: (Object.values(newCustomSplits).filter(v => v > 0).length === 1 ? '私帳' : '公帳') as any
+      type: (effectiveCount === 1 ? '私帳' : '公帳') as any
     });
   };
 
@@ -263,7 +267,11 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               </div>
 
               <div className="bg-slate-100 p-1 rounded-xl flex border-2 border-black">
-                <button onClick={() => setEditSplitMode('equal')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${editSplitMode === 'equal' ? 'bg-black text-white' : 'text-slate-400'}`}>均分</button>
+                <button onClick={() => {
+                  setEditSplitMode('equal');
+                  const s = editingItem.splitWith || [];
+                  setEditingItem({ ...editingItem, type: s.length === 1 ? '私帳' : '公帳' });
+                }} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${editSplitMode === 'equal' ? 'bg-black text-white' : 'text-slate-400'}`}>均分</button>
                 <button onClick={() => { 
                   setEditSplitMode('custom'); 
                   if(!editingItem.customSplits) {
@@ -273,7 +281,12 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                     if (splitWith.length === 0) return;
                     const p = Math.round(editingItem.ntdAmount/splitWith.length);
                     splitWith.forEach(id=>{ if(id) { s[id]=p; m[id]=p/currentEffectiveRate; } });
-                    setEditingItem({...editingItem, customSplits:s, splitWith});
+                    setEditingItem({
+                      ...editingItem, 
+                      customSplits:s, 
+                      splitWith,
+                      type: (splitWith.length === 1 ? '私帳' : '公帳') as any
+                    });
                     setManualSplits(m);
                   }
                 }} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${editSplitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}>手動</button>
@@ -302,7 +315,16 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                         <div className="flex items-center gap-2">
                           <button onClick={() => { 
                              const s = editingItem.splitWith || []; 
-                             setEditingItem({...editingItem, splitWith: s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '')}); 
+                             const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
+                             
+                             const newType = (editSplitMode === 'equal' && newSplitWith.length === 1) ? '私帳' :
+                                            (editSplitMode === 'equal' && newSplitWith.length > 1) ? '公帳' : editingItem.type;
+
+                             setEditingItem({
+                               ...editingItem, 
+                               splitWith: newSplitWith,
+                               type: newType as any
+                             }); 
                           }} className={`flex-1 flex justify-between p-2 rounded-xl border-2 ${isSelected ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-slate-100 text-slate-300'}`}>
                             <span className="text-sm font-black">{m.name}</span>
                             {editSplitMode === 'equal' && isSelected && <Check size={16} className="text-[#1FA67A]" />}
