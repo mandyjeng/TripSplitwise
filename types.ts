@@ -29,7 +29,8 @@ export interface Transaction {
   originalAmount: number;
   ntdAmount: number;
   splitWith: string[];
-  customSplits?: Record<string, number>; // 新增：ID 對應金額
+  customSplits?: Record<string, number>; // 台幣分帳金額
+  customOriginalSplits?: Record<string, number>; // 新增：原始幣別分帳金額 (確保外幣不被改掉)
   isSplit: boolean;
   exchangeRate: number;
 }

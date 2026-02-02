@@ -68,7 +68,6 @@ const parseLocalDate = (dateStr: string): string => {
 
 /**
  * 序列化分帳細節 (Record -> String)
- * 現在會處理均分模式，自動產生金額明細
  */
 const serializeCustomSplits = (t: Transaction, members: Member[]): string => {
   if (!t.isSplit || !t.splitWith || t.splitWith.length === 0) return '';
@@ -76,8 +75,16 @@ const serializeCustomSplits = (t: Transaction, members: Member[]): string => {
   const splitWithIds = t.splitWith.filter(id => id && String(id).trim() !== '');
   const count = splitWithIds.length;
   
-  // 決定資料源：有手動金額用手動金額，否則計算均分金額
   const splitEntries = splitWithIds.map(id => {
+    // 優先讀取紀錄的原始外幣金額
+    let oriVal = 0;
+    if (t.customOriginalSplits && t.customOriginalSplits[id] !== undefined) {
+      oriVal = t.customOriginalSplits[id];
+    } else {
+      oriVal = t.originalAmount / count;
+    }
+
+    // 讀取台幣金額
     let ntdVal = 0;
     if (t.customSplits && t.customSplits[id] !== undefined) {
       ntdVal = t.customSplits[id];
@@ -87,12 +94,7 @@ const serializeCustomSplits = (t: Transaction, members: Member[]): string => {
 
     const name = members?.find(m => m.id === id)?.name || id;
     
-    // 格式化：Name:NTD(Original)
     if (t.currency !== 'TWD' && t.ntdAmount > 0) {
-      const oriVal = t.customSplits && t.customSplits[id] !== undefined
-        ? (t.customSplits[id] / t.ntdAmount) * t.originalAmount
-        : t.originalAmount / count;
-      
       const formattedOri = oriVal % 1 === 0 ? oriVal : parseFloat(oriVal.toFixed(2));
       return `${name}:${Math.round(ntdVal)}(${formattedOri})`;
     }
@@ -106,22 +108,31 @@ const serializeCustomSplits = (t: Transaction, members: Member[]): string => {
 /**
  * 反序列化分帳細節 (String -> Record)
  */
-const deserializeCustomSplits = (splitStr: string, members: Member[]): Record<string, number> => {
-  const result: Record<string, number> = {};
-  if (!splitStr) return result;
+const deserializeCustomSplits = (splitStr: string, members: Member[]) => {
+  const customSplits: Record<string, number> = {};
+  const customOriginalSplits: Record<string, number> = {};
+  if (!splitStr) return { customSplits, customOriginalSplits };
 
   splitStr.split(';').forEach(pair => {
     const parts = pair.split(':');
     if (parts.length >= 2) {
       const name = parts[0];
       const valPart = parts[1];
-      const ntdStr = valPart.split('(')[0];
+      
+      const ntdPart = valPart.split('(')[0];
+      const oriPartMatch = valPart.match(/\(([^)]+)\)/);
+      const oriPart = oriPartMatch ? oriPartMatch[1] : ntdPart;
+
       const member = members.find(m => m.name === name.trim());
       const id = member ? member.id : name.trim();
-      if (id && id !== '') result[id] = parseFloat(ntdStr) || 0;
+      
+      if (id && id !== '') {
+        customSplits[id] = parseFloat(ntdPart) || 0;
+        customOriginalSplits[id] = parseFloat(oriPart) || 0;
+      }
     }
   });
-  return result;
+  return { customSplits, customOriginalSplits };
 };
 
 /**
@@ -136,7 +147,7 @@ export const fetchTransactionsFromSheet = async (url: string, members: Member[] 
     
     return records.map((row: any) => {
       const splitDetailStr = row['分帳細節'] || '';
-      const customSplits = deserializeCustomSplits(splitDetailStr, members);
+      const { customSplits, customOriginalSplits } = deserializeCustomSplits(splitDetailStr, members);
       
       return {
         id: `sheet-${row.rowIndex}`,
@@ -153,6 +164,7 @@ export const fetchTransactionsFromSheet = async (url: string, members: Member[] 
         isSplit: row['是否拆帳'] === '是' || row['是否拆帳'] === true,
         splitWith: row['參與成員'] ? String(row['參與成員']).split(',').map(s => s.trim()).filter(Boolean) : [],
         customSplits: Object.keys(customSplits).length > 0 ? customSplits : undefined,
+        customOriginalSplits: Object.keys(customOriginalSplits).length > 0 ? customOriginalSplits : undefined,
         exchangeRate: row['匯率'] || 1
       };
     });
