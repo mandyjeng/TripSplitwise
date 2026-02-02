@@ -164,7 +164,6 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     const ntdValue = customSplitCurrency === 'TWD' ? inputVal : Math.round(inputVal * currentEffectiveRate);
     const newCustomSplits = { ...pendingRecord.customSplits, [memberId]: ntdValue };
     
-    // 計算有效的分帳人數（金額大於0的人）
     const effectiveCount = Object.values(newCustomSplits).filter(v => v > 0).length;
     
     setPendingRecord({
@@ -286,8 +285,22 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               <div className="bg-slate-50 p-4 rounded-3xl border-2 border-black space-y-3">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex bg-white p-1 rounded-lg border-2 border-black">
-                    <button onClick={() => setCustomSplitCurrency('TWD')} className={`px-2 py-1 rounded font-black text-[9px] ${customSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣輸入</button>
-                    <button onClick={() => setCustomSplitCurrency('ORIGINAL')} className={`px-2 py-1 rounded font-black text-[9px] ${customSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣輸入</button>
+                    <button onClick={() => {
+                      setCustomSplitCurrency('TWD');
+                      const newManual: Record<string, number> = {};
+                      Object.entries(pendingRecord.customSplits || {}).forEach(([id, ntd]) => {
+                        newManual[id] = ntd;
+                      });
+                      setManualSplits(newManual);
+                    }} className={`px-2 py-1 rounded font-black text-[9px] ${customSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣輸入</button>
+                    <button onClick={() => {
+                      setCustomSplitCurrency('ORIGINAL');
+                      const newManual: Record<string, number> = {};
+                      Object.entries(pendingRecord.customSplits || {}).forEach(([id, ntd]) => {
+                        newManual[id] = ntd / currentEffectiveRate;
+                      });
+                      setManualSplits(newManual);
+                    }} className={`px-2 py-1 rounded font-black text-[9px] ${customSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣輸入</button>
                   </div>
                   <div className={`text-[10px] font-black px-2 py-0.5 rounded-full border-2 ${isSplitBalanced ? 'bg-green-100 border-green-500 text-green-600' : 'bg-red-50 border-red-200 text-red-500'}`}>
                     {splitMode === 'equal' ? `每人約 ${perPersonInfo.label} ${perPersonInfo.amount}` : (isSplitBalanced ? '金額對齊' : `差額: ${remainingAmount.toFixed(1)}`)}
@@ -308,8 +321,6 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                             const s = pendingRecord.splitWith || []; 
                             const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
                             
-                            // 若切換後剩下一人，自動切換為私帳；多於一人切換為公帳
-                            // 僅在均分模式下依賴 splitWith 人數
                             const newType = (splitMode === 'equal' && newSplitWith.length === 1) ? '私帳' : 
                                            (splitMode === 'equal' && newSplitWith.length > 1) ? '公帳' : pendingRecord.type;
 

@@ -3,7 +3,7 @@ import React from 'react';
 import { Transaction, Member, AppState } from '../types';
 import AIInput from './AIInput';
 import { CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
-import { TrendingUp, ShoppingBag, Users, ReceiptText, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, ReceiptText, FileSpreadsheet, User } from 'lucide-react';
 
 interface OverviewProps {
   state: AppState;
@@ -105,31 +105,56 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
           </h3>
         </div>
         <div className="space-y-3">
-          {recentTransactions.map(t => (
-            <div 
-              key={t.id} 
-              onClick={() => onEditTransaction(t.id)}
-              className="bg-white border-2 border-black p-3.5 rounded-2xl flex items-center gap-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <div className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 16 })}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-black text-[13px] text-black truncate leading-tight">{t.merchant}</div>
-                <div className="text-[10px] font-bold text-slate-400">{t.date}</div>
-              </div>
-              <div className="text-right shrink-0">
-                {t.currency !== 'TWD' && (
+          {recentTransactions.map(t => {
+            const payer = state.members.find(m => m.id === t.payerId);
+            const isAllSplit = t.isSplit && t.splitWith.length === state.members.length;
+            const splitNames = t.isSplit ? t.splitWith.map(id => state.members.find(m => m.id === id)?.name || id).join(', ') : '';
+
+            return (
+              <div 
+                key={t.id} 
+                onClick={() => onEditTransaction(t.id)}
+                className="bg-white border-2 border-black p-4 rounded-2xl flex items-center gap-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <div className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
+                  {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 16 })}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-black text-sm text-black truncate flex items-center gap-2">
+                    {t.merchant}
+                    {t.type === '私帳' && <span className="text-[8px] px-1.5 py-0.5 bg-slate-100 border border-black rounded uppercase">Private</span>}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-400 truncate mb-1">{t.item}</div>
+                  
+                  {/* 付款人與參與成員標籤區 */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <div className="flex items-center gap-1 text-[9px] font-black text-blue-500">
+                      <User size={10} />
+                      <span>{payer?.name || t.payerId}</span>
+                    </div>
+                    {t.isSplit && t.type === '公帳' && (
+                      <div className="flex items-center gap-1 text-[9px] font-black text-slate-400">
+                        <Users size={10} />
+                        {isAllSplit ? (
+                          <span className="bg-slate-100 text-slate-600 px-1 py-0.5 rounded border border-slate-200 text-[7px] leading-none">ALL</span>
+                        ) : (
+                          <span className="truncate max-w-[100px]">{splitNames}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
                   <div className="text-[10px] font-bold text-slate-400 italic mb-0.5">
                     {t.originalAmount.toLocaleString()} {t.currency}
                   </div>
-                )}
-                <div className="font-black text-base text-black italic leading-none">
-                  NT$ {Math.round(t.ntdAmount).toLocaleString()}
+                  <div className="font-black text-base text-black italic leading-none">
+                    NT$ {Math.round(t.ntdAmount).toLocaleString()}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Member, Category, AppState } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
-import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2, Calculator, Users, Zap, Check, UserCheck, Tag, CreditCard, ChevronDown } from 'lucide-react';
+import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2, Calculator, Users, Zap, Check, UserCheck, Tag, CreditCard, ChevronDown, Filter, RotateCcw, ChevronUp, User } from 'lucide-react';
 import { updateTransactionInSheet } from '../services/sheets';
 
 interface DetailsProps {
@@ -18,14 +18,18 @@ interface DetailsProps {
 const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateState, onSync, isSyncing, initialEditId, onClearInitialEdit }) => {
   const [filterCategory, setFilterCategory] = useState<Category | '全部'>('全部');
   const [filterMemberId, setFilterMemberId] = useState<string | '全部'>('全部');
+  const [filterType, setFilterType] = useState<'全部' | '公帳' | '私帳'>('全部');
+  const [filterDate, setFilterDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  
   const [isSaving, setIsSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<Transaction | null>(null);
   const [editSplitMode, setEditSplitMode] = useState<'equal' | 'custom'>('equal');
   const [editSplitCurrency, setEditSplitCurrency] = useState<'ORIGINAL' | 'TWD'>('ORIGINAL');
   
   const [manualSplits, setManualSplits] = useState<Record<string, number>>({});
-  const [openDropdown, setOpenDropdown] = useState<'payer' | 'category' | 'type' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'payer' | 'category' | 'type' | 'filter-payer' | 'filter-category' | 'filter-type' | null>(null);
 
   useEffect(() => {
     if (initialEditId) {
@@ -117,7 +121,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     const ntdValue = editSplitCurrency === 'TWD' ? inputVal : Math.round(inputVal * currentEffectiveRate);
     const newCustomSplits = { ...(editingItem.customSplits || {}), [memberId]: ntdValue };
     
-    // 計算有效分帳人數
     const effectiveCount = Object.values(newCustomSplits).filter(v => v > 0).length;
 
     setEditingItem({
@@ -177,15 +180,15 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     }
   }, [editingItem, editSplitCurrency]);
 
-  const CustomSelect = ({ label, icon: Icon, value, options, onSelect, isOpen, onToggle }: any) => (
-    <div className="relative" onClick={e => e.stopPropagation()}>
-      <label className="text-[9px] font-black text-slate-400 mb-1 block uppercase tracking-widest flex items-center gap-1.5"><Icon size={12} /> {label}</label>
-      <button onClick={onToggle} className="w-full bg-white border-2 border-black rounded-xl px-4 py-2.5 flex items-center justify-between shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all">
-        <span className="font-black text-sm">{options.find((o: any) => o.id === value)?.name || value}</span>
-        <ChevronDown size={14} className="text-slate-400" />
+  const CustomSelect = ({ label, icon: Icon, value, options, onSelect, isOpen, onToggle, className = "" }: any) => (
+    <div className={`relative ${className}`} onClick={e => e.stopPropagation()}>
+      {label && <label className="text-[9px] font-black text-slate-400 mb-1 block uppercase tracking-widest flex items-center gap-1.5"><Icon size={12} /> {label}</label>}
+      <button onClick={onToggle} className="w-full bg-white border-2 border-black rounded-xl px-3 py-2 flex items-center justify-between shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all">
+        <span className="font-black text-xs truncate mr-1">{options.find((o: any) => o.id === value)?.name || value}</span>
+        <ChevronDown size={12} className="text-slate-400 shrink-0" />
       </button>
       {isOpen && (
-        <div className="absolute z-[70] left-0 right-0 top-full mt-2 bg-white border-2 border-black rounded-xl p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-48 overflow-y-auto no-scrollbar">
+        <div className="absolute z-[70] left-0 right-0 top-full mt-1 bg-white border-2 border-black rounded-xl p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-48 overflow-y-auto no-scrollbar">
           {options.map((opt: any) => (
             <button key={opt.id} onClick={() => { onSelect(opt.id); onToggle(); }} className={`w-full text-left px-3 py-2 rounded-lg font-black text-xs mb-1 last:mb-0 ${value === opt.id ? 'bg-[#F6D32D]' : 'hover:bg-slate-50'}`}>{opt.name}</button>
           ))}
@@ -194,9 +197,22 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
     </div>
   );
 
+  const resetFilters = () => {
+    setFilterCategory('全部');
+    setFilterMemberId('全部');
+    setFilterType('全部');
+    setFilterDate('');
+    setSearchQuery('');
+  };
+
+  const isFilterActive = filterCategory !== '全部' || filterMemberId !== '全部' || filterType !== '全部' || filterDate !== '' || searchQuery !== '';
+  const activeFilterCount = (filterCategory !== '全部' ? 1 : 0) + (filterMemberId !== '全部' ? 1 : 0) + (filterType !== '全部' ? 1 : 0) + (filterDate !== '' ? 1 : 0);
+
   const filteredTransactions = state.transactions
     .filter(t => filterCategory === '全部' || t.category === filterCategory)
-    .filter(t => filterMemberId === '全部' || t.payerId === filterMemberId || (t.isSplit && t.splitWith.includes(filterMemberId)))
+    .filter(t => filterMemberId === '全部' || t.payerId === filterMemberId)
+    .filter(t => filterType === '全部' || t.type === filterType)
+    .filter(t => filterDate === '' || t.date === filterDate)
     .filter(t => t.item.toLowerCase().includes(searchQuery.toLowerCase()) || t.merchant.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -204,7 +220,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
 
   return (
     <div className="space-y-6 pb-24">
-      <div className="sticky top-0 bg-[#FDFCF8]/95 backdrop-blur-md pt-1 pb-4 z-10 border-b-2 border-dashed border-slate-200">
+      <div className="sticky top-0 bg-[#FDFCF8]/95 backdrop-blur-md pt-1 pb-4 z-40 border-b-2 border-dashed border-slate-200">
         <div className="flex gap-2.5 mb-3.5">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -212,33 +228,154 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
           </div>
           <button onClick={onSync} disabled={isSyncing} className="bg-[#F6D32D] comic-border w-12 rounded-xl flex items-center justify-center comic-shadow-sm active:translate-y-0.5 transition-all"><RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} /></button>
         </div>
+
+        {/* 2x2 網格篩選面板控制項 */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+             <button 
+                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-black font-black text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-y-0.5 transition-all ${isFilterExpanded || activeFilterCount > 0 ? 'bg-[#F6D32D]' : 'bg-white'}`}
+             >
+                <Filter size={16} />
+                <span>篩選條件</span>
+                {activeFilterCount > 0 && (
+                  <span className="bg-black text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">{activeFilterCount}</span>
+                )}
+                {isFilterExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+             </button>
+
+             {isFilterActive && (
+                <button onClick={resetFilters} className="flex items-center gap-1.5 text-slate-400 font-black text-xs hover:text-black transition-colors">
+                  <RotateCcw size={14} /> 重設
+                </button>
+             )}
+          </div>
+
+          {/* 展開後的 2x2 網格篩選器 */}
+          {isFilterExpanded && (
+            <div className="bg-white border-2 border-black rounded-3xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-2 gap-3">
+                <CustomSelect 
+                  label="付款人"
+                  icon={UserCheck}
+                  value={filterMemberId}
+                  options={[{id: '全部', name: '不限'}, ...state.members.map(m => ({ id: m.id, name: m.name }))]}
+                  isOpen={openDropdown === 'filter-payer'}
+                  onToggle={() => setOpenDropdown(openDropdown === 'filter-payer' ? null : 'filter-payer')}
+                  onSelect={setFilterMemberId}
+                />
+                <CustomSelect 
+                  label="分類"
+                  icon={Tag}
+                  value={filterCategory}
+                  options={[{id: '全部', name: '不限'}, ...CATEGORIES.map(c => ({ id: c, name: c }))]}
+                  isOpen={openDropdown === 'filter-category'}
+                  onToggle={() => setOpenDropdown(openDropdown === 'filter-category' ? null : 'filter-category')}
+                  onSelect={setFilterCategory}
+                />
+                <CustomSelect 
+                  label="帳務類型"
+                  icon={CreditCard}
+                  value={filterType}
+                  options={[{id: '全部', name: '不限'}, {id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]}
+                  isOpen={openDropdown === 'filter-type'}
+                  onToggle={() => setOpenDropdown(openDropdown === 'filter-type' ? null : 'filter-type')}
+                  onSelect={setFilterType}
+                />
+                <div className="relative">
+                  <label className="text-[9px] font-black text-slate-400 mb-1 block uppercase tracking-widest flex items-center gap-1.5"><Calendar size={12} /> 日期</label>
+                  <div className="bg-white border-2 border-black rounded-xl px-3 py-2 flex items-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    <input 
+                      type="date" 
+                      className="bg-transparent border-none p-0 text-xs font-black focus:ring-0 w-full" 
+                      value={filterDate}
+                      onChange={e => setFilterDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setIsFilterExpanded(false)}
+                className="w-full mt-4 py-2 border-t-2 border-dashed border-slate-200 text-slate-400 font-black text-[10px] flex items-center justify-center gap-1"
+              >
+                收合篩選面板 <ChevronUp size={12} />
+              </button>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-3 px-1 flex justify-between items-center text-[10px] font-black text-slate-400 italic">
+          <span>{filteredTransactions.length} 筆明細結果</span>
+        </div>
       </div>
 
       <div className="space-y-8">
-        {dates.map(date => (
+        {dates.length > 0 ? dates.map(date => (
           <div key={date} className="space-y-4">
-            <div className="flex items-center gap-2"><div className="bg-white border-2 border-black px-3 py-1 rounded-lg text-[10px] font-black">{date}</div><div className="flex-1 h-[1px] bg-slate-200"></div></div>
+            <div className="flex items-center gap-2">
+              <div className="bg-white border-2 border-black px-3 py-1 rounded-lg text-[10px] font-black">{date}</div>
+              <div className="flex-1 h-[1px] bg-slate-200"></div>
+            </div>
             <div className="space-y-3">
-              {filteredTransactions.filter(t => t.date === date).map(t => (
-                <div key={t.id} onClick={() => {
-                  setEditingItem(t);
-                  setEditSplitMode(t.customSplits && Object.keys(t.customSplits).length > 0 ? 'custom' : 'equal');
-                  const m: Record<string,number> = {};
-                  const r = t.ntdAmount/t.originalAmount;
-                  Object.entries(t.customSplits||{}).forEach(([id,v]) => { if(id && id !== '') m[id]=v/r; });
-                  setManualSplits(m);
-                }} className="bg-white border-2 border-black p-4 rounded-2xl flex items-center gap-3 comic-shadow active:translate-y-0.5 transition-all cursor-pointer">
-                  <div className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>{React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 16 })}</div>
-                  <div className="flex-1 min-w-0"><div className="font-black text-sm truncate">{t.merchant}</div><div className="text-[10px] font-bold text-slate-400 truncate">{t.item}</div></div>
-                  <div className="text-right">
-                    <div className="text-[9px] font-black text-slate-400 italic">{t.originalAmount} {t.currency}</div>
-                    <div className="font-black text-base">NT$ {Math.round(t.ntdAmount).toLocaleString()}</div>
+              {filteredTransactions.filter(t => t.date === date).map(t => {
+                const payer = state.members.find(m => m.id === t.payerId);
+                const isAllSplit = t.isSplit && t.splitWith.length === state.members.length;
+                const splitNames = t.isSplit ? t.splitWith.map(id => state.members.find(m => m.id === id)?.name || id).join(', ') : '';
+
+                return (
+                  <div key={t.id} onClick={() => {
+                    setEditingItem(t);
+                    setEditSplitMode(t.customSplits && Object.keys(t.customSplits).length > 0 ? 'custom' : 'equal');
+                    const m: Record<string,number> = {};
+                    const r = t.ntdAmount/t.originalAmount;
+                    Object.entries(t.customSplits||{}).forEach(([id,v]) => { if(id && id !== '') m[id]=v/r; });
+                    setManualSplits(m);
+                  }} className="bg-white border-2 border-black p-4 rounded-2xl flex items-center gap-3 comic-shadow active:translate-y-0.5 transition-all cursor-pointer">
+                    <div className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>{React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 16 })}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-black text-sm truncate flex items-center gap-2">
+                        {t.merchant}
+                        {t.type === '私帳' && <span className="text-[8px] px-1.5 py-0.5 bg-slate-100 border border-black rounded uppercase">Private</span>}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-400 truncate mb-1">{t.item}</div>
+                      
+                      {/* 付款人與參與成員標籤區 */}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <div className="flex items-center gap-1 text-[9px] font-black text-blue-500">
+                          <User size={10} />
+                          <span>{payer?.name || t.payerId}</span>
+                        </div>
+                        {t.isSplit && t.type === '公帳' && (
+                          <div className="flex items-center gap-1 text-[9px] font-black text-slate-400">
+                            <Users size={10} />
+                            {isAllSplit ? (
+                              <span className="bg-slate-100 text-slate-600 px-1 py-0.5 rounded border border-slate-200 text-[7px] leading-none">ALL</span>
+                            ) : (
+                              <span className="truncate max-w-[120px]">{splitNames}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[9px] font-black text-slate-400 italic">{t.originalAmount} {t.currency}</div>
+                      <div className="font-black text-base">NT$ {Math.round(t.ntdAmount).toLocaleString()}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="py-20 text-center space-y-3">
+            <div className="w-16 h-16 bg-slate-50 border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center mx-auto">
+              <Search size={24} className="text-slate-300" />
+            </div>
+            <p className="text-slate-400 font-black text-sm">找不到符合條件的明細</p>
+            {isFilterActive && <button onClick={resetFilters} className="text-blue-500 font-black text-xs underline">重置所有篩選</button>}
+          </div>
+        )}
       </div>
 
       {editingItem && (
@@ -295,8 +432,18 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               <div className="bg-slate-50 p-4 rounded-3xl border-2 border-black space-y-3">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex bg-white p-1 rounded-lg border-2 border-black">
-                    <button onClick={() => { setEditSplitCurrency('TWD'); const nM:Record<string,number>={}; Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=v; }); setManualSplits(nM); }} className={`px-2 py-1 rounded font-black text-[9px] ${editSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣</button>
-                    <button onClick={() => { setEditSplitCurrency('ORIGINAL'); const nM:Record<string,number>={}; Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=v/currentEffectiveRate; }); setManualSplits(nM); }} className={`px-2 py-1 rounded font-black text-[9px] ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣</button>
+                    <button onClick={() => { 
+                      setEditSplitCurrency('TWD'); 
+                      const nM:Record<string,number>={}; 
+                      Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=v; }); 
+                      setManualSplits(nM); 
+                    }} className={`px-2 py-1 rounded font-black text-[9px] ${editSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣</button>
+                    <button onClick={() => { 
+                      setEditSplitCurrency('ORIGINAL'); 
+                      const nM:Record<string,number>={}; 
+                      Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=v/currentEffectiveRate; }); 
+                      setManualSplits(nM); 
+                    }} className={`px-2 py-1 rounded font-black text-[9px] ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣</button>
                   </div>
                   <div className={`text-[10px] font-black px-2 py-0.5 rounded-full border-2 ${isSplitBalanced ? 'bg-green-100 border-green-500 text-green-600' : 'bg-red-50 text-red-500'}`}>
                     {editSplitMode === 'equal' ? `每人約 ${perPersonInfo.label} ${perPersonInfo.amount}` : (isSplitBalanced ? '已對齊' : `差: ${remainingAmount.toFixed(1)}`)}
