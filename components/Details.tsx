@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Member, Category, AppState } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
-import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2, Calculator, Users, Zap, Check, UserCheck, Tag, CreditCard, ChevronDown, Filter, RotateCcw, ChevronUp, User } from 'lucide-react';
+import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2, Calculator, Users, Zap, Check, UserCheck, Tag, CreditCard, ChevronDown, Filter, RotateCcw, ChevronUp, User, AlertTriangle } from 'lucide-react';
 import { updateTransactionInSheet } from '../services/sheets';
 
 interface DetailsProps {
@@ -13,9 +13,10 @@ interface DetailsProps {
   isSyncing: boolean;
   initialEditId?: string | null;
   onClearInitialEdit?: () => void;
+  setIsMutating?: (loading: boolean) => void;
 }
 
-const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateState, onSync, isSyncing, initialEditId, onClearInitialEdit }) => {
+const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateState, onSync, isSyncing, initialEditId, onClearInitialEdit, setIsMutating }) => {
   const [filterCategory, setFilterCategory] = useState<Category | '全部'>('全部');
   const [filterMemberId, setFilterMemberId] = useState<string | '全部'>('全部');
   const [filterType, setFilterType] = useState<'全部' | '公帳' | '私帳'>('全部');
@@ -25,6 +26,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
   
   const [isSaving, setIsSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<Transaction | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // 新增：自定義刪除確認狀態
+  
   const [editSplitMode, setEditSplitMode] = useState<'equal' | 'custom'>('equal');
   const [editSplitCurrency, setEditSplitCurrency] = useState<'ORIGINAL' | 'TWD'>('ORIGINAL');
   
@@ -39,7 +42,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         setEditSplitMode(target.customSplits && Object.keys(target.customSplits).length > 0 ? 'custom' : 'equal');
         setEditSplitCurrency('ORIGINAL');
         
-        // 初始化 manualSplits：優先讀取 customOriginalSplits (外幣)
         const m: Record<string, number> = {};
         if (target.customOriginalSplits) {
           Object.assign(m, target.customOriginalSplits);
@@ -97,7 +99,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         const newRate = newTotal / prev.originalAmount;
         const newNtdSplits: Record<string, number> = {};
         
-        // 按照現有的「外幣數值比例」重新分配台幣
         Object.entries(manualSplits).forEach(([id, foreignVal]) => {
           if (id && id !== '' && prev.splitWith?.includes(id)) {
              newNtdSplits[id] = Math.round(foreignVal * newRate);
@@ -105,7 +106,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         });
         updates.customSplits = newNtdSplits;
 
-        // 如果目前是台幣輸入模式，還得同步 manualSplits (這部分比較少見但需處理)
         if (editSplitCurrency === 'TWD') {
           const newManual: Record<string, number> = {};
           Object.assign(newManual, newNtdSplits);
@@ -146,6 +146,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
   const handleSaveEdit = async () => {
     if (!editingItem || isSaving || !isSplitBalanced) return;
     setIsSaving(true);
+    setIsMutating?.(true);
     try {
       const finalItem = { ...editingItem };
       if (editSplitMode === 'equal') {
@@ -170,14 +171,28 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       }
       
       const newList = state.transactions.map(t => t.id === finalItem.id ? { ...finalItem } : t);
+      if (state.sheetUrl && finalItem.rowIndex !== undefined) {
+        await updateTransactionInSheet(state.sheetUrl, finalItem, state.members);
+      }
       updateState({ transactions: newList });
-      if (state.sheetUrl && finalItem.rowIndex !== undefined) await updateTransactionInSheet(state.sheetUrl, finalItem, state.members);
       setEditingItem(null);
     } catch (error) {
       alert('儲存失敗');
     } finally {
       setIsSaving(false);
+      setIsMutating?.(false);
     }
+  };
+
+  /**
+   * 最終確認執行刪除
+   */
+  const executeDelete = async () => {
+    if (!editingItem) return;
+    const idToDelete = editingItem.id;
+    setIsDeleteConfirmOpen(false);
+    setEditingItem(null); // 立即關閉視窗
+    await onDeleteTransaction(idToDelete);
   };
 
   const perPersonInfo = useMemo(() => {
@@ -249,7 +264,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
           <button onClick={onSync} disabled={isSyncing} className="bg-[#F6D32D] comic-border w-12 rounded-xl flex items-center justify-center comic-shadow-sm active:translate-y-0.5 transition-all"><RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} /></button>
         </div>
 
-        {/* 2x2 網格篩選面板控制項 */}
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
              <button 
@@ -271,7 +285,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
              )}
           </div>
 
-          {/* 展開後的 2x2 網格篩選器 */}
           {isFilterExpanded && (
             <div className="bg-white border-2 border-black rounded-3xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-top-2 duration-200">
               <div className="grid grid-cols-2 gap-3">
@@ -365,7 +378,6 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                       </div>
                       <div className="text-[10px] font-bold text-slate-400 truncate mb-1">{t.item}</div>
                       
-                      {/* 付款人與參與成員標籤區 */}
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <div className="flex items-center gap-1 text-[9px] font-black text-blue-500">
                           <User size={10} />
@@ -403,6 +415,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         )}
       </div>
 
+      {/* 修改明細 Modal */}
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white border-4 border-black rounded-[2.5rem] w-full max-w-md p-6 comic-shadow relative overflow-hidden">
@@ -450,7 +463,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                       if(id) { 
                         sNtd[id]=perNtd; 
                         sOri[id]=perOri;
-                        m[id]=perOri; // 預設使用外幣模式
+                        m[id]=perOri;
                       } 
                     });
                     setEditingItem({
@@ -502,10 +515,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                           <button onClick={() => { 
                              const s = editingItem.splitWith || []; 
                              const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
-                             
                              const newType = (editSplitMode === 'equal' && newSplitWith.length === 1) ? '私帳' :
                                             (editSplitMode === 'equal' && newSplitWith.length > 1) ? '公帳' : editingItem.type;
-
                              setEditingItem({
                                ...editingItem, 
                                splitWith: newSplitWith,
@@ -537,9 +548,38 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             </div>
 
             <div className="flex gap-3 mt-4">
-              <button onClick={() => { if(confirm('刪除？')) onDeleteTransaction(editingItem.id).then(()=>setEditingItem(null)); }} className="p-4 rounded-2xl border-2 border-red-200 text-red-500 flex items-center justify-center"><Trash2 size={24} /></button>
+              <button onClick={() => setIsDeleteConfirmOpen(true)} className="p-4 rounded-2xl border-2 border-red-200 text-red-500 flex items-center justify-center active:scale-95 transition-all"><Trash2 size={24} /></button>
               <button disabled={!isSplitBalanced || isSaving || (editingItem.splitWith?.length || 0) === 0} onClick={handleSaveEdit} className={`flex-1 py-4 rounded-2xl font-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 ${isSplitBalanced && (editingItem.splitWith?.length || 0) > 0 ? 'bg-black' : 'bg-slate-200'}`}>{isSaving ? '儲存中...' : '儲存修改'}</button>
             </div>
+
+            {/* 自定義刪除確認子視窗 (用於繞過沙盒 confirm 限制) */}
+            {isDeleteConfirmOpen && (
+              <div className="absolute inset-0 z-[100] flex items-center justify-center p-6 bg-white/95 backdrop-blur-md animate-in fade-in">
+                <div className="flex flex-col items-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center border-4 border-red-500 animate-bounce">
+                    <AlertTriangle size={40} className="text-red-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-2xl font-black italic">確定要刪除嗎？</h4>
+                    <p className="text-sm font-bold text-slate-400 leading-relaxed">此動作將永久移除這筆資料，且雲端也會同步刪除，無法復原哦！</p>
+                  </div>
+                  <div className="flex flex-col w-full gap-3">
+                    <button 
+                      onClick={executeDelete}
+                      className="w-full py-4 bg-red-500 text-white rounded-2xl font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-2 border-black active:translate-y-1 active:shadow-none transition-all"
+                    >
+                      確定刪除
+                    </button>
+                    <button 
+                      onClick={() => setIsDeleteConfirmOpen(false)}
+                      className="w-full py-3 bg-white text-slate-500 rounded-2xl font-black border-2 border-slate-200 hover:bg-slate-50 transition-all"
+                    >
+                      不小心按到，取消
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

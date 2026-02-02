@@ -13,6 +13,7 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const [initialEditId, setInitialEditId] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
   
@@ -38,9 +39,6 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, ...updates }));
   };
 
-  /**
-   * 監聽全域未處理的 Promise 拒絕，捕獲 Fetch 錯誤
-   */
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
       console.error('Unhandled Rejection:', event.reason);
@@ -144,6 +142,7 @@ const App: React.FC = () => {
     const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
     if (!activeLedger) return;
 
+    setIsMutating(true);
     const isSplit = t.isSplit ?? true;
     const payerId = t.payerId || state.currentUser;
     const splitWith = isSplit ? (t.splitWith || state.members.map(m => m.id)) : [payerId];
@@ -162,32 +161,60 @@ const App: React.FC = () => {
       ntdAmount: t.ntdAmount || 0,
       splitWith: splitWith,
       customSplits: t.customSplits,
+      customOriginalSplits: t.customOriginalSplits,
       isSplit: isSplit,
       exchangeRate: state.exchangeRate,
     };
 
-    updateState({ transactions: [newTransaction, ...state.transactions] });
     try {
       await saveToGoogleSheet(activeLedger.url, newTransaction, state.members);
+      setState(prev => ({
+        ...prev,
+        transactions: [newTransaction, ...prev.transactions]
+      }));
       setActiveTab('overview');
       setShowNav(true);
     } catch (err) {
-      alert('資料已存至本地，但雲端同步失敗。');
+      alert('雲端同步失敗。');
+    } finally {
+      setIsMutating(false);
     }
   };
 
+  /**
+   * 修正後的刪除函式
+   */
   const onDeleteTransaction = async (id: string) => {
-    const t = state.transactions.find(item => item.id === id);
-    if (!t) return;
-    updateState({ transactions: state.transactions.filter(item => item.id !== id) });
-    if (state.sheetUrl && t.rowIndex !== undefined) {
-      try {
-        await deleteTransactionFromSheet(state.sheetUrl, t.rowIndex);
-      } catch (err) {
-        alert('雲端刪除失敗');
-      }
+    // 1. 直接從當前 state 尋找目標交易，確保能讀到最新的 rowIndex
+    const target = state.transactions.find(t => t.id === id);
+    
+    if (!target) {
+      console.error('[App] 刪除失敗：找不到該筆交易', id);
+      return;
     }
-    setActiveTab('details');
+    
+    setIsMutating(true); // 立即觸發星星遮罩
+    
+    try {
+      // 2. 確定雲端 URL
+      const ledgerUrl = state.sheetUrl || state.ledgers.find(l => l.id === state.activeLedgerId)?.url;
+      
+      if (ledgerUrl && typeof target.rowIndex === 'number') {
+        // 3. 執行雲端刪除
+        await deleteTransactionFromSheet(ledgerUrl, target.rowIndex);
+      }
+
+      // 4. 更新本地狀態移除該筆
+      setState(prev => ({
+        ...prev,
+        transactions: prev.transactions.filter(t => t.id !== id)
+      }));
+    } catch (err) {
+      console.error('[App] 刪除過程出錯:', err);
+      alert('雲端刪除失敗，請確認網路連線。');
+    } finally {
+      setIsMutating(false); // 關閉遮罩
+    }
   };
 
   const onEditFromOverview = (id: string) => {
@@ -197,7 +224,7 @@ const App: React.FC = () => {
   };
 
   const handleJumpToUserSelection = () => {
-    if (isSyncing || isRefreshing || isAIProcessing) return;
+    if (isSyncing || isRefreshing || isAIProcessing || isMutating) return;
     setActiveTab('settings');
     setShowNav(true);
     setTimeout(() => {
@@ -209,11 +236,12 @@ const App: React.FC = () => {
   };
 
   const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
-  const isGlobalLocked = isSyncing || isAIProcessing || isRefreshing;
+  const isGlobalLocked = isSyncing || isAIProcessing || isRefreshing || isMutating;
   
   const getLoadingMessage = () => {
     if (isAIProcessing) return "讓 AI 想一想...";
     if (isRefreshing) return "帳本同步中...";
+    if (isMutating) return "資料處理中...";
     return "連線雲端中...";
   };
 
@@ -222,7 +250,7 @@ const App: React.FC = () => {
       {/* 載入中遮罩 */}
       {isGlobalLocked && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 comic-shadow flex flex-col items-center gap-5">
+          <div className="bg-white border-[4px] border-black rounded-[2.5rem] p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center gap-5">
             <Sparkles size={48} className="text-[#F6D32D] animate-bounce" />
             <div className="text-center font-black text-lg">{getLoadingMessage()}</div>
           </div>
@@ -284,6 +312,7 @@ const App: React.FC = () => {
             isSyncing={isSyncing || isRefreshing} 
             initialEditId={initialEditId}
             onClearInitialEdit={() => setInitialEditId(null)}
+            setIsMutating={setIsMutating}
           />
         )}
         {activeTab === 'settings' && <Settings state={state} updateState={updateState} onReloadManagement={loadManagement} onSwitchLedger={(l) => syncLedgerData(l, false)} />}
