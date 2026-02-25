@@ -257,10 +257,22 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
             </div>
 
             <div className="space-y-4 max-h-[65vh] overflow-y-auto no-scrollbar pb-6 px-1">
-              <CustomSelect label="付款人" icon={UserCheck} value={pendingRecord.payerId} options={members.map(m => ({ id: m.id, name: m.name }))} isOpen={openDropdown === 'payer'} onToggle={() => setOpenDropdown(openDropdown === 'payer' ? null : 'payer')} onSelect={(id: string) => setPendingRecord({...pendingRecord, payerId: id})} />
+              <CustomSelect label="付款人" icon={UserCheck} value={pendingRecord.payerId} options={members.map(m => ({ id: m.id, name: m.name }))} isOpen={openDropdown === 'payer'} onToggle={() => setOpenDropdown(openDropdown === 'payer' ? null : 'payer')} onSelect={(id: string) => {
+                const updates: any = { payerId: id };
+                if (pendingRecord.type === '私帳') {
+                  updates.splitWith = [id];
+                }
+                setPendingRecord({ ...pendingRecord, ...updates });
+              }} />
               <div className="grid grid-cols-2 gap-3">
                 <CustomSelect label="分類" icon={Tag} value={pendingRecord.category} options={CATEGORIES.map(c => ({ id: c, name: c }))} isOpen={openDropdown === 'category'} onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')} onSelect={(cat: any) => setPendingRecord({...pendingRecord, category: cat})} />
-                <CustomSelect label="帳務類型" icon={CreditCard} value={pendingRecord.type} options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]} isOpen={openDropdown === 'type'} onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')} onSelect={(type: any) => setPendingRecord({...pendingRecord, type})} />
+                <CustomSelect label="帳務類型" icon={CreditCard} value={pendingRecord.type} options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]} isOpen={openDropdown === 'type'} onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')} onSelect={(type: any) => {
+                  const updates: any = { type };
+                  if (type === '私帳') {
+                    updates.splitWith = [pendingRecord.payerId];
+                  }
+                  setPendingRecord({ ...pendingRecord, ...updates });
+                }} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 p-2 rounded-xl border-2 border-black"><label className="text-[9px] font-black text-slate-400 mb-0.5 block uppercase">日期</label><input type="date" className="w-full bg-transparent font-black text-xs p-0 border-none focus:ring-0" value={pendingRecord.date} onChange={e => setPendingRecord({...pendingRecord, date: e.target.value})} /></div>
