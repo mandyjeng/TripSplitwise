@@ -136,7 +136,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
         if (customSplitCurrency === 'ORIGINAL') {
           Object.entries(manualSplits).forEach(([id, foreignVal]) => {
             if (id && prev.splitWith?.includes(id)) {
-               newSplits[id] = Math.round(foreignVal * newRate);
+               newSplits[id] = Math.round((foreignVal as number) * newRate);
             }
           });
         } else {
@@ -144,7 +144,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
           const newManual: Record<string, number> = {};
           Object.entries(manualSplits).forEach(([id, oldNtd]) => {
             if (id && prev.splitWith?.includes(id)) {
-              const scaled = oldNtd * ratio;
+              const scaled = (oldNtd as number) * ratio;
               newManual[id] = scaled;
               newSplits[id] = Math.round(scaled);
             }
@@ -164,7 +164,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
     const ntdValue = customSplitCurrency === 'TWD' ? inputVal : Math.round(inputVal * currentEffectiveRate);
     const newCustomSplits = { ...pendingRecord.customSplits, [memberId]: ntdValue };
     
-    const effectiveCount = Object.values(newCustomSplits).filter(v => v > 0).length;
+    const effectiveCount = Object.values(newCustomSplits).filter(v => (v as number) > 0).length;
     
     setPendingRecord({
       ...pendingRecord,
@@ -289,7 +289,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                       setCustomSplitCurrency('TWD');
                       const newManual: Record<string, number> = {};
                       Object.entries(pendingRecord.customSplits || {}).forEach(([id, ntd]) => {
-                        newManual[id] = ntd;
+                        newManual[id] = (ntd as number);
                       });
                       setManualSplits(newManual);
                     }} className={`px-2 py-1 rounded font-black text-[9px] ${customSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣輸入</button>
@@ -297,7 +297,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                       setCustomSplitCurrency('ORIGINAL');
                       const newManual: Record<string, number> = {};
                       Object.entries(pendingRecord.customSplits || {}).forEach(([id, ntd]) => {
-                        newManual[id] = ntd / currentEffectiveRate;
+                        newManual[id] = (ntd as number) / currentEffectiveRate;
                       });
                       setManualSplits(newManual);
                     }} className={`px-2 py-1 rounded font-black text-[9px] ${customSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣輸入</button>
@@ -310,8 +310,8 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                 <div className="space-y-3">
                   {members.map(m => {
                     const isSelected = pendingRecord.splitWith?.includes(m.id);
-                    const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? manualSplits[m.id].toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
-                    const ntdVal = pendingRecord.customSplits?.[m.id] || 0;
+                    const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
+                    const ntdVal = (pendingRecord.customSplits?.[m.id] as number) || 0;
                     const refLabel = (isSelected && ntdVal > 0) ? (customSplitCurrency === 'TWD' ? `≈ ${(ntdVal / currentEffectiveRate).toFixed(2)} ${pendingRecord.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
 
                     return (
@@ -358,11 +358,11 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
               const final = { ...pendingRecord };
               if (splitMode === 'custom') {
                 const selectedWithMoney = Object.entries(final.customSplits || {})
-                  .filter(([id, v]) => v > 0 && id && id !== '' && final.splitWith?.includes(id))
+                  .filter(([id, v]) => (v as number) > 0 && id && id !== '' && final.splitWith?.includes(id))
                   .map(([id]) => id);
                 final.splitWith = selectedWithMoney;
                 const cleanedSplits: Record<string, number> = {};
-                selectedWithMoney.forEach(id => { cleanedSplits[id] = final.customSplits![id]; });
+                selectedWithMoney.forEach(id => { cleanedSplits[id] = final.customSplits![id] as number; });
                 final.customSplits = cleanedSplits;
               } else {
                 final.splitWith = final.splitWith?.filter(id => id && id !== '');

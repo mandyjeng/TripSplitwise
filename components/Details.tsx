@@ -47,8 +47,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
           Object.assign(m, target.customOriginalSplits);
         } else if (target.customSplits) {
           const r = target.originalAmount / target.ntdAmount;
-          Object.entries(target.customSplits).forEach(([id, v]) => {
-            if (id && id !== '') m[id] = v * r;
+          Object.entries(target.customSplits as Record<string, number>).forEach(([id, v]) => {
+            if (id && id !== '') m[id] = (v as number) * r;
           });
         }
         setManualSplits(m);
@@ -101,7 +101,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         
         Object.entries(manualSplits).forEach(([id, foreignVal]) => {
           if (id && id !== '' && prev.splitWith?.includes(id)) {
-             newNtdSplits[id] = Math.round(foreignVal * newRate);
+             newNtdSplits[id] = Math.round((foreignVal as number) * newRate);
           }
         });
         updates.customSplits = newNtdSplits;
@@ -132,7 +132,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       newOriSplits[memberId] = inputVal / currentEffectiveRate;
     }
     
-    const effectiveCount = Object.values(newOriSplits).filter(v => v > 0).length;
+    const effectiveCount = Object.values(newOriSplits).filter(v => (v as number) > 0).length;
 
     setEditingItem({
       ...editingItem,
@@ -154,7 +154,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         finalItem.splitWith = finalItem.splitWith.filter(id => id && id !== '');
       } else {
         const selectedWithMoney = Object.entries(finalItem.customOriginalSplits || {})
-          .filter(([id, val]) => val > 0 && id && id !== '' && finalItem.splitWith?.includes(id))
+          .filter(([id, val]) => (val as number) > 0 && id && id !== '' && finalItem.splitWith?.includes(id))
           .map(([id]) => id);
           
         finalItem.splitWith = selectedWithMoney;
@@ -162,8 +162,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         const cleanedNtd: Record<string, number> = {};
         const cleanedOri: Record<string, number> = {};
         selectedWithMoney.forEach(id => { 
-          cleanedNtd[id] = finalItem.customSplits![id]; 
-          cleanedOri[id] = finalItem.customOriginalSplits![id];
+          cleanedNtd[id] = finalItem.customSplits![id] as number; 
+          cleanedOri[id] = finalItem.customOriginalSplits![id] as number;
         });
         finalItem.customSplits = cleanedNtd;
         finalItem.customOriginalSplits = cleanedOri;
@@ -362,11 +362,11 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                        Object.assign(m, t.customOriginalSplits);
                     } else if (t.customSplits) {
                        const r = t.originalAmount / t.ntdAmount;
-                       Object.entries(t.customSplits).forEach(([id, v]) => { m[id] = v * r; });
+                       Object.entries(t.customSplits as Record<string, number>).forEach(([id, v]) => { m[id] = (v as number) * r; });
                     }
                     setManualSplits(m);
                   }} className="bg-white border-2 border-black p-5 rounded-2xl flex items-center gap-4 comic-shadow active:translate-y-0.5 transition-all cursor-pointer">
-                    <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>{React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 18 })}</div>
+                    <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${(CATEGORY_COLORS[t.category] || CATEGORY_COLORS['雜項']).split(' ')[0]}`}>{React.cloneElement((CATEGORY_ICONS[t.category] || CATEGORY_ICONS['雜項']) as React.ReactElement<any>, { size: 18 })}</div>
                     <div className="flex-1 min-w-0">
                       <div className="font-black text-sm truncate flex items-center gap-2 mb-0.5">
                         {t.merchant}
@@ -469,8 +469,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
               <div className="bg-slate-50 p-5 rounded-[2rem] border-2 border-black space-y-4">
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex bg-white p-1 rounded-xl border-2 border-black">
-                    <button onClick={() => { setEditSplitCurrency('TWD'); const nM:Record<string,number>={}; Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=v; }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣</button>
-                    <button onClick={() => { setEditSplitCurrency('ORIGINAL'); const nM:Record<string,number>={}; Object.entries(editingItem.customOriginalSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=v; }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣</button>
+                    <button onClick={() => { setEditSplitCurrency('TWD'); const nM:Record<string,number>={}; Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=(v as number); }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣</button>
+                    <button onClick={() => { setEditSplitCurrency('ORIGINAL'); const nM:Record<string,number>={}; Object.entries(editingItem.customOriginalSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=(v as number); }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣</button>
                   </div>
                   <div className={`text-[11px] font-black px-3 py-1 rounded-full border-2 italic tracking-wide ${isSplitBalanced ? 'bg-green-100 border-green-500 text-green-600' : 'bg-red-50 text-red-500'}`}>
                     {editSplitMode === 'equal' ? `每人約 ${perPersonInfo.label} ${perPersonInfo.amount}` : (isSplitBalanced ? '已對齊' : `差: ${remainingAmount.toFixed(1)}`)}
@@ -480,9 +480,9 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 <div className="space-y-4">
                   {state.members.map(m => {
                     const isSelected = editingItem.splitWith?.includes(m.id);
-                    const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? manualSplits[m.id].toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
-                    const ntdVal = editingItem.customSplits?.[m.id] || 0;
-                    const oriVal = editingItem.customOriginalSplits?.[m.id] || 0;
+                    const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
+                    const ntdVal = (editingItem.customSplits?.[m.id] as number) || 0;
+                    const oriVal = (editingItem.customOriginalSplits?.[m.id] as number) || 0;
                     const refVal = (isSelected && (ntdVal > 0 || oriVal > 0)) ? (editSplitCurrency === 'TWD' ? `≈ ${oriVal.toFixed(2)} ${editingItem.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
 
                     return (

@@ -28,9 +28,9 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
       balances[t.payerId] += t.ntdAmount;
       if (t.isSplit) {
         if (t.customSplits && Object.keys(t.customSplits).length > 0) {
-          Object.entries(t.customSplits).forEach(([mid, amount]) => {
-            balances[mid] -= amount;
-            consumptions[mid] += amount;
+          Object.entries(t.customSplits as Record<string, number>).forEach(([mid, amount]) => {
+            balances[mid] -= amount as number;
+            consumptions[mid] += amount as number;
           });
         } else {
           const splitCount = t.splitWith.length;
@@ -105,8 +105,8 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
                 onClick={() => onEditTransaction(t.id)}
                 className="bg-white border-2 border-black p-5 rounded-2xl flex items-center gap-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${CATEGORY_COLORS[t.category].split(' ')[0]}`}>
-                  {React.cloneElement(CATEGORY_ICONS[t.category] as React.ReactElement<any>, { size: 18 })}
+                <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${(CATEGORY_COLORS[t.category] || CATEGORY_COLORS['雜項']).split(' ')[0]}`}>
+                  {React.cloneElement((CATEGORY_ICONS[t.category] || CATEGORY_ICONS['雜項']) as React.ReactElement<any>, { size: 18 })}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-black text-sm text-black truncate flex items-center gap-2 mb-0.5">
