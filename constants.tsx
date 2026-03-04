@@ -6,6 +6,7 @@ import {
   Utensils, 
   Ticket, 
   ShieldCheck, 
+  Plane,
   MoreHorizontal,
   LayoutDashboard,
   ListOrdered,
@@ -27,6 +28,7 @@ export const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   '用餐': <Utensils size={18} />,
   '門票': <Ticket size={18} />,
   '保險': <ShieldCheck size={18} />,
+  '機票': <Plane size={18} />,
   '雜項': <MoreHorizontal size={18} />,
   '個人消費': <UserCheck size={18} />,
 };
@@ -37,6 +39,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   '用餐': 'bg-orange-100 text-orange-600',
   '門票': 'bg-purple-100 text-purple-600',
   '保險': 'bg-teal-100 text-teal-600',
+  '機票': 'bg-sky-100 text-sky-600',
   '雜項': 'bg-gray-100 text-gray-600',
   '個人消費': 'bg-pink-100 text-pink-600',
 };
