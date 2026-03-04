@@ -28,12 +28,20 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
     <div className="space-y-8 pb-32">
       <section className="bg-white comic-border rounded-[2.5rem] p-6 sm:p-8 comic-shadow">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center">
+          <a 
+            href="https://docs.google.com/spreadsheets/d/1G4pJsGx0OHgEtwN0ElHvtEQnjTLhK2FuMXO81jn-HvM/edit?gid=0#gid=0"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 group cursor-pointer hover:opacity-80 transition-all"
+          >
+            <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
               <Cloud size={24} />
             </div>
-            <h2 className="text-xl font-black italic">行程帳本切換</h2>
-          </div>
+            <div className="flex flex-col">
+              <h2 className="text-xl font-black italic">行程帳本切換</h2>
+              <span className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">點擊開啟雲端管理</span>
+            </div>
+          </a>
           <button 
             onClick={onReloadManagement}
             className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 active:rotate-180 transition-all duration-500"

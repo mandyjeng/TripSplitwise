@@ -226,7 +226,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
           <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center border-2 border-black">
             <TrendingUp size={20} />
           </div>
-          <h3 className="text-xl font-black italic text-black">我的分類支出統計</h3>
+          <h3 className="text-xl font-black italic text-black">我的旅程總花費</h3>
         </div>
 
         <div className="space-y-4">
