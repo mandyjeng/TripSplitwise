@@ -152,10 +152,13 @@ const App: React.FC = () => {
     if (!activeLedger) return;
 
     setIsMutating(true);
-    const isSplit = t.isSplit ?? true;
     const payerId = t.payerId || state.currentUser;
-    const splitWith = isSplit ? (t.splitWith || state.members.map(m => m.id)) : [payerId];
-    const finalType = splitWith.length === 1 ? '私帳' : (t.type || '公帳');
+    
+    // 邏輯修正：如果類型是私帳，或者參與人數只有1人，則強制為不拆帳
+    const isPrivate = t.type === '私帳' || (t.splitWith && t.splitWith.length === 1);
+    const finalIsSplit = isPrivate ? false : (t.isSplit ?? true);
+    const finalSplitWith = finalIsSplit ? (t.splitWith || state.members.map(m => m.id)) : [payerId];
+    const finalType = finalIsSplit ? '公帳' : '私帳';
 
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
@@ -168,10 +171,10 @@ const App: React.FC = () => {
       currency: t.currency || state.defaultCurrency || 'JPY',
       originalAmount: t.originalAmount || 0,
       ntdAmount: t.ntdAmount || 0,
-      splitWith: splitWith,
+      splitWith: finalSplitWith,
       customSplits: t.customSplits,
       customOriginalSplits: t.customOriginalSplits,
-      isSplit: isSplit,
+      isSplit: finalIsSplit,
       exchangeRate: state.exchangeRate,
     };
 
