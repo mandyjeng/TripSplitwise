@@ -3,7 +3,7 @@ import React from 'react';
 import { Transaction, Member, AppState } from '../types';
 import AIInput from './AIInput';
 import { CATEGORY_ICONS, CATEGORY_COLORS, DEFAULT_CATEGORY_ICON, DEFAULT_CATEGORY_COLOR } from '../constants';
-import { TrendingUp, ShoppingBag, Users, ReceiptText, FileSpreadsheet, User } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, ReceiptText, FileSpreadsheet, User, ArrowRightLeft, ArrowRight } from 'lucide-react';
 
 interface OverviewProps {
   state: AppState;
@@ -86,12 +86,52 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
 
   const myCategoryStats = calculateCategoryStats();
 
+  const calculateSettlements = () => {
+    const debtors = state.members
+      .map(m => ({ id: m.id, name: m.name, balance: balances[m.id] }))
+      .filter(m => m.balance < -0.5)
+      .sort((a, b) => a.balance - b.balance); // 欠最多錢的優先
+
+    const creditors = state.members
+      .map(m => ({ id: m.id, name: m.name, balance: balances[m.id] }))
+      .filter(m => m.balance > 0.5)
+      .sort((a, b) => b.balance - a.balance); // 墊最多錢的優先
+
+    const settlements: { from: string; to: string; amount: number }[] = [];
+    
+    let dIdx = 0;
+    let cIdx = 0;
+    
+    const dList = debtors.map(d => ({ ...d, balance: Math.abs(d.balance) }));
+    const cList = creditors.map(c => ({ ...c }));
+
+    while (dIdx < dList.length && cIdx < cList.length) {
+      const d = dList[dIdx];
+      const c = cList[cIdx];
+      const amount = Math.min(d.balance, c.balance);
+      
+      if (amount > 0.5) {
+        settlements.push({ from: d.name, to: c.name, amount });
+      }
+      
+      d.balance -= amount;
+      c.balance -= amount;
+      
+      if (d.balance < 0.5) dIdx++;
+      if (c.balance < 0.5) cIdx++;
+    }
+    
+    return settlements;
+  };
+
+  const settlements = calculateSettlements();
+
   const recentTransactions = [...state.transactions]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 3);
 
   return (
-    <div className="space-y-10 pb-16">
+    <div className="space-y-10 pb-32">
       <section className="mt-2">
         <AIInput 
           onAddTransaction={onAddTransaction} 
@@ -180,6 +220,47 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         </div>
       </section>
 
+      {/* 1. 我的分類支出統計 */}
+      <section className="bg-white border-[3px] border-black rounded-[2.5rem] p-7 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center border-2 border-black">
+            <TrendingUp size={20} />
+          </div>
+          <h3 className="text-xl font-black italic text-black">我的分類支出統計</h3>
+        </div>
+
+        <div className="space-y-4">
+          {myCategoryStats.length > 0 ? (
+            myCategoryStats.map(([cat, amount]) => (
+              <div key={cat} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-black rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg border-2 border-black flex items-center justify-center ${(CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR).split(' ')[0]}`}>
+                    {React.cloneElement((CATEGORY_ICONS[cat] || DEFAULT_CATEGORY_ICON) as React.ReactElement<any>, { size: 18 })}
+                  </div>
+                  <span className="font-black text-sm text-black">{cat}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-black italic text-black">NT$ {Math.round(amount).toLocaleString()}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                    佔比 {Math.round((amount / myTotalCost) * 100)}%
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-slate-400 font-bold italic">
+              目前尚無任何消費記錄
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-6 pt-6 border-t-2 border-dashed border-slate-200 flex justify-between items-center">
+          <span className="text-sm font-black text-slate-500 italic">我的總花費合計</span>
+          <span className="text-2xl font-black italic text-blue-600">NT$ {Math.round(myTotalCost).toLocaleString()}</span>
+        </div>
+      </section>
+
+      {/* 2. 原本的 每個人的狀態 (Balance Sheet) */}
       <section>
         <div className="flex justify-between items-center mb-6 px-1">
           <h2 className="text-2xl font-black text-black flex items-center gap-2 italic">
@@ -260,43 +341,57 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         </div>
       </section>
 
-      {/* 新增：目前登入者的分類支出統計 */}
+      {/* 3. 收支平衡建議 - 修正配色與人名遮擋 */}
       <section className="bg-white border-[3px] border-black rounded-[2.5rem] p-7 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center border-2 border-black">
-            <TrendingUp size={20} />
+          <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center border-2 border-black">
+            <ArrowRightLeft size={20} />
           </div>
-          <h3 className="text-xl font-black italic text-black">我的分類支出統計</h3>
+          <h3 className="text-xl font-black italic text-black">收支平衡建議</h3>
         </div>
 
         <div className="space-y-4">
-          {myCategoryStats.length > 0 ? (
-            myCategoryStats.map(([cat, amount]) => (
-              <div key={cat} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-black rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg border-2 border-black flex items-center justify-center ${(CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR).split(' ')[0]}`}>
-                    {React.cloneElement((CATEGORY_ICONS[cat] || DEFAULT_CATEGORY_ICON) as React.ReactElement<any>, { size: 18 })}
+          {settlements.length > 0 ? (
+            settlements.map((s, idx) => (
+              <div key={idx} className="bg-slate-50 border-2 border-black p-5 rounded-2xl flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">付款人</span>
+                      <div className="bg-white text-black px-3 py-1.5 rounded-lg font-black text-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        {s.from}
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-center pt-4">
+                      <ArrowRight size={18} className="text-emerald-500" />
+                    </div>
+
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">收款人</span>
+                      <div className="bg-[#F6D32D] text-black px-3 py-1.5 rounded-lg font-black text-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        {s.to}
+                      </div>
+                    </div>
                   </div>
-                  <span className="font-black text-sm text-black">{cat}</span>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-black italic text-black">NT$ {Math.round(amount).toLocaleString()}</div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                    佔比 {Math.round((amount / myTotalCost) * 100)}%
-                  </div>
+                <div className="flex justify-between items-end border-t-2 border-dashed border-slate-200 pt-3">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Pay Amount</div>
+                  <div className="text-2xl font-black italic text-black">NT$ {Math.round(s.amount).toLocaleString()}</div>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-slate-400 font-bold italic">
-              目前尚無任何消費記錄
+            <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 font-bold italic text-slate-400">
+              目前帳目已平衡，無需轉帳
             </div>
           )}
         </div>
         
-        <div className="mt-6 pt-6 border-t-2 border-dashed border-slate-200 flex justify-between items-center">
-          <span className="text-sm font-black text-slate-500 italic">我的總花費合計</span>
-          <span className="text-2xl font-black italic text-blue-600">NT$ {Math.round(myTotalCost).toLocaleString()}</span>
+        <div className="mt-6 text-center">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+            Calculated based on current transactions
+          </p>
         </div>
       </section>
     </div>
