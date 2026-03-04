@@ -22,17 +22,22 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('trip_split_master_state_v2');
-    if (saved) return JSON.parse(saved);
-    return {
+    const defaults = {
       activeLedgerId: '',
       ledgers: [],
       members: [], 
+      categories: [],
       transactions: [],
       exchangeRate: 1,
       defaultCurrency: 'TWD',
       currentUser: '',
-      theme: 'comic'
+      theme: 'comic' as const
     };
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { ...defaults, ...parsed };
+    }
+    return defaults;
   });
 
   const updateState = (updates: Partial<AppState>) => {
@@ -100,11 +105,15 @@ const App: React.FC = () => {
     setIsSyncing(true);
     setGlobalError(null);
     try {
-      const ledgers = await fetchManagementConfig(MASTER_GAS_URL);
+      const { ledgers, categories } = await fetchManagementConfig(MASTER_GAS_URL);
       if (ledgers.length > 0) {
         const savedId = localStorage.getItem('last_active_ledger_id');
         const active = ledgers.find(l => l.id === savedId) || ledgers[0];
-        updateState({ ledgers });
+        
+        updateState({ 
+          ledgers, 
+          categories: categories.length > 0 ? categories : ['住宿', '交通', '門票', '用餐', '雜項', '保險', '個人消費'] 
+        });
         await syncLedgerData(active, false);
       }
     } catch (e: any) {

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Member, Category, AppState } from '../types';
-import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
+import { CATEGORY_ICONS, CATEGORY_COLORS, DEFAULT_CATEGORY_ICON, DEFAULT_CATEGORY_COLOR } from '../constants';
 import { Search, Trash2, Calendar, RefreshCw, X, Save, Clock, Loader2, Calculator, Users, Zap, Check, UserCheck, Tag, CreditCard, ChevronDown, Filter, RotateCcw, ChevronUp, User, AlertTriangle } from 'lucide-react';
 import { updateTransactionInSheet } from '../services/sheets';
 
@@ -297,7 +297,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   label="分類"
                   icon={Tag}
                   value={filterCategory}
-                  options={[{id: '全部', name: '不限'}, ...CATEGORIES.map(c => ({ id: c, name: c }))]}
+                  options={[{id: '全部', name: '不限'}, ...(state.categories || []).map(c => ({ id: c, name: c }))]}
                   isOpen={openDropdown === 'filter-category'}
                   onToggle={() => setOpenDropdown(openDropdown === 'filter-category' ? null : 'filter-category')}
                   onSelect={setFilterCategory}
@@ -366,7 +366,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                     }
                     setManualSplits(m);
                   }} className="bg-white border-2 border-black p-5 rounded-2xl flex items-center gap-4 comic-shadow active:translate-y-0.5 transition-all cursor-pointer">
-                    <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${(CATEGORY_COLORS[t.category] || CATEGORY_COLORS['雜項']).split(' ')[0]}`}>{React.cloneElement((CATEGORY_ICONS[t.category] || CATEGORY_ICONS['雜項']) as React.ReactElement<any>, { size: 18 })}</div>
+                    <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${(CATEGORY_COLORS[t.category] || DEFAULT_CATEGORY_COLOR).split(' ')[0]}`}>{React.cloneElement((CATEGORY_ICONS[t.category] || DEFAULT_CATEGORY_ICON) as React.ReactElement<any>, { size: 18 })}</div>
                     <div className="flex-1 min-w-0">
                       <div className="font-black text-sm truncate flex items-center gap-2 mb-0.5">
                         {t.merchant}
@@ -422,7 +422,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             <div className="space-y-5 max-h-[60vh] overflow-y-auto no-scrollbar pb-6 px-1">
               <CustomSelect label="付款人" icon={UserCheck} value={editingItem.payerId} options={state.members.map(m => ({ id: m.id, name: m.name }))} isOpen={openDropdown === 'payer'} onToggle={() => setOpenDropdown(openDropdown === 'payer' ? null : 'payer')} onSelect={(id: string) => setEditingItem({...editingItem, payerId: id})} />
               <div className="grid grid-cols-2 gap-4">
-                <CustomSelect label="分類" icon={Tag} value={editingItem.category} options={CATEGORIES.map(c => ({ id: c, name: c }))} isOpen={openDropdown === 'category'} onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')} onSelect={(cat: any) => setEditingItem({...editingItem, category: cat})} />
+                <CustomSelect label="分類" icon={Tag} value={editingItem.category} options={(state.categories || []).map(c => ({ id: c, name: c }))} isOpen={openDropdown === 'category'} onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')} onSelect={(cat: any) => setEditingItem({...editingItem, category: cat})} />
                 <CustomSelect label="帳務類型" icon={CreditCard} value={editingItem.type} options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]} isOpen={openDropdown === 'type'} onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')} onSelect={(type: any) => setEditingItem({...editingItem, type})} />
               </div>
               <div className="grid grid-cols-2 gap-4">

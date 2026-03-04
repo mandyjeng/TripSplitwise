@@ -21,9 +21,7 @@ import { Category } from './types';
 // 更新後的新 Master GAS 網址 (有帶原始excel URL的)
 export const MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycby0j75fAgfmhmQhjXTIWVOv38JsLp1wULTTrXkvN9kGJsorqH0wv_HHIror0xHsM-Jx/exec';
 
-export const CATEGORIES: Category[] = ['住宿', '交通', '門票', '用餐', '雜項', '保險', '個人消費'];
-
-export const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
+export const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   '住宿': <Home size={18} />,
   '交通': <Bus size={18} />,
   '用餐': <Utensils size={18} />,
@@ -33,7 +31,7 @@ export const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
   '個人消費': <UserCheck size={18} />,
 };
 
-export const CATEGORY_COLORS: Record<Category, string> = {
+export const CATEGORY_COLORS: Record<string, string> = {
   '住宿': 'bg-blue-100 text-blue-600',
   '交通': 'bg-green-100 text-green-600',
   '用餐': 'bg-orange-100 text-orange-600',
@@ -42,6 +40,10 @@ export const CATEGORY_COLORS: Record<Category, string> = {
   '雜項': 'bg-gray-100 text-gray-600',
   '個人消費': 'bg-pink-100 text-pink-600',
 };
+
+// 預設樣式 (當 Excel 中的分類不在上面的對照表時使用)
+export const DEFAULT_CATEGORY_ICON = <MoreHorizontal size={18} />;
+export const DEFAULT_CATEGORY_COLOR = 'bg-slate-100 text-slate-600';
 
 export const TABS = [
   { id: 'overview', label: '記帳', icon: <LayoutDashboard size={20} /> },

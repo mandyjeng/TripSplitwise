@@ -25,10 +25,10 @@ const robustFetch = async (url: string, options: RequestInit = {}, retries = 2):
 };
 
 /**
- * 從「主管理表」抓取所有帳本配置
+ * 從「主管理表」抓取所有帳本配置與全域分類
  */
-export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
-  if (!url) return [];
+export const fetchManagementConfig = async (url: string): Promise<{ ledgers: Ledger[], categories: Category[] }> => {
+  if (!url) return { ledgers: [], categories: [] };
   
   try {
     const response = await robustFetch(url, { cache: 'no-store' });
@@ -36,11 +36,11 @@ export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
 
     if (data.error) {
       console.error('GAS Management Error:', data.error);
-      return [];
+      return { ledgers: [], categories: [] };
     }
 
     const rawLedgers = data.ledgers || [];
-    return rawLedgers.map((l: any) => {
+    const ledgers = rawLedgers.map((l: any) => {
       const sourceUrl = l['原始excel'] || l['原始Excel'] || l['sourceUrl'] || l['URL'] || '';
       
       return {
@@ -53,6 +53,9 @@ export const fetchManagementConfig = async (url: string): Promise<Ledger[]> => {
         members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()).filter(Boolean) : []
       };
     });
+
+    const categories = data.categories || [];
+    return { ledgers, categories };
   } catch (error) {
     console.error('[SheetService] fetchManagementConfig failed:', error);
     throw new Error('無法連線至雲端管理表，請檢查網路或腳本權限設定。');
@@ -141,6 +144,7 @@ const deserializeCustomSplits = (splitStr: string, members: Member[]) => {
 export const fetchTransactionsFromSheet = async (url: string, members: Member[] = []): Promise<Partial<Transaction>[]> => {
   if (!url) return [];
   try {
+    // 確保讀取的是交易分頁 (通常是預設或名為 Transactions)
     const response = await robustFetch(url, { cache: 'no-store' });
     const data = await response.json();
     const records = Array.isArray(data) ? data : (data.transactions || []);

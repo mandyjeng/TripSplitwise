@@ -1,5 +1,5 @@
 
-export type Category = '住宿' | '交通' | '門票' | '用餐' | '雜項' | '保險' | '個人消費';
+export type Category = string;
 
 export interface Member {
   id: string;
@@ -39,6 +39,7 @@ export interface AppState {
   activeLedgerId: string;
   ledgers: Ledger[];
   members: Member[];
+  categories: Category[];
   transactions: Transaction[];
   exchangeRate: number;
   defaultCurrency: string;

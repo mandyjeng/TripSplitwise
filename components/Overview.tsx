@@ -2,7 +2,7 @@
 import React from 'react';
 import { Transaction, Member, AppState } from '../types';
 import AIInput from './AIInput';
-import { CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
+import { CATEGORY_ICONS, CATEGORY_COLORS, DEFAULT_CATEGORY_ICON, DEFAULT_CATEGORY_COLOR } from '../constants';
 import { TrendingUp, ShoppingBag, Users, ReceiptText, FileSpreadsheet, User } from 'lucide-react';
 
 interface OverviewProps {
@@ -63,6 +63,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         <AIInput 
           onAddTransaction={onAddTransaction} 
           members={state.members} 
+          categories={state.categories}
           exchangeRate={state.exchangeRate} 
           defaultCurrency={state.defaultCurrency}
           setIsAIProcessing={setIsAIProcessing} 
@@ -105,8 +106,8 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
                 onClick={() => onEditTransaction(t.id)}
                 className="bg-white border-2 border-black p-5 rounded-2xl flex items-center gap-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${(CATEGORY_COLORS[t.category] || CATEGORY_COLORS['雜項']).split(' ')[0]}`}>
-                  {React.cloneElement((CATEGORY_ICONS[t.category] || CATEGORY_ICONS['雜項']) as React.ReactElement<any>, { size: 18 })}
+                <div className={`w-11 h-11 rounded-xl border-2 border-black flex items-center justify-center shrink-0 ${(CATEGORY_COLORS[t.category] || DEFAULT_CATEGORY_COLOR).split(' ')[0]}`}>
+                  {React.cloneElement((CATEGORY_ICONS[t.category] || DEFAULT_CATEGORY_ICON) as React.ReactElement<any>, { size: 18 })}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-black text-sm text-black truncate flex items-center gap-2 mb-0.5">

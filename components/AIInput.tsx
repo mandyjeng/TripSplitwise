@@ -3,18 +3,19 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Camera, Send, Check, X, Image as ImageIcon, Sparkles, Zap, Users, Calculator, ArrowRightLeft, UserCheck, Tag, CreditCard, ChevronDown, Loader2 } from 'lucide-react';
 import { processAIInput, processReceiptImage } from '../services/gemini';
 import { Transaction, Category, Member } from '../types';
-import { CATEGORIES } from '../constants';
+import { CATEGORY_ICONS, CATEGORY_COLORS, DEFAULT_CATEGORY_ICON, DEFAULT_CATEGORY_COLOR } from '../constants';
 
 interface AIInputProps {
   onAddTransaction: (t: Partial<Transaction>) => void;
   members: Member[];
+  categories: Category[];
   exchangeRate: number;
   defaultCurrency: string;
   setIsAIProcessing: (loading: boolean) => void;
   currentUserId: string;
 }
 
-const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRate, defaultCurrency, setIsAIProcessing, currentUserId }) => {
+const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories = [], exchangeRate, defaultCurrency, setIsAIProcessing, currentUserId }) => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' }) | null>(null);
@@ -83,7 +84,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
       item: data.item || '未命名項目',
       originalAmount: amount,
       currency: currency,
-      category: (CATEGORIES.includes(data.category as Category) ? data.category : '用餐') as Category,
+      category: (categories.includes(data.category as Category) ? data.category : (categories[0] || '雜項')) as Category,
       date: (data.date || new Date().toISOString()).split('T')[0],
       ntdAmount: ntdAmount,
       payerId: currentUserId || members[0]?.id || '',
@@ -265,7 +266,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, exchangeRa
                 setPendingRecord({ ...pendingRecord, ...updates });
               }} />
               <div className="grid grid-cols-2 gap-3">
-                <CustomSelect label="分類" icon={Tag} value={pendingRecord.category} options={CATEGORIES.map(c => ({ id: c, name: c }))} isOpen={openDropdown === 'category'} onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')} onSelect={(cat: any) => setPendingRecord({...pendingRecord, category: cat})} />
+                <CustomSelect label="分類" icon={Tag} value={pendingRecord.category} options={categories.map(c => ({ id: c, name: c }))} isOpen={openDropdown === 'category'} onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')} onSelect={(cat: any) => setPendingRecord({...pendingRecord, category: cat})} />
                 <CustomSelect label="帳務類型" icon={CreditCard} value={pendingRecord.type} options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]} isOpen={openDropdown === 'type'} onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')} onSelect={(type: any) => {
                   const updates: any = { type };
                   if (type === '私帳') {
