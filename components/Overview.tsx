@@ -16,42 +16,75 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
   const totalExpense = state.transactions.reduce((acc, t) => acc + t.ntdAmount, 0);
 
   const calculateStats = () => {
+    const prepaid: Record<string, number> = {};
+    const publicPayable: Record<string, number> = {};
+    const privateSpending: Record<string, number> = {};
     const balances: Record<string, number> = {};
-    const consumptions: Record<string, number> = {};
     
     state.members.forEach(m => {
+      prepaid[m.id] = 0;
+      publicPayable[m.id] = 0;
+      privateSpending[m.id] = 0;
       balances[m.id] = 0;
-      consumptions[m.id] = 0;
     });
 
     state.transactions.forEach(t => {
-      balances[t.payerId] += t.ntdAmount;
       if (t.isSplit) {
+        // 公帳：付款人墊付
+        prepaid[t.payerId] += t.ntdAmount;
+        
         if (t.customSplits && Object.keys(t.customSplits).length > 0) {
           Object.entries(t.customSplits as Record<string, number>).forEach(([mid, amount]) => {
-            balances[mid] -= amount as number;
-            consumptions[mid] += amount as number;
+            publicPayable[mid] += amount as number;
           });
         } else {
           const splitCount = t.splitWith.length;
           if (splitCount > 0) {
             const perPerson = t.ntdAmount / splitCount;
             t.splitWith.forEach(mid => {
-              balances[mid] -= perPerson;
-              consumptions[mid] += perPerson;
+              publicPayable[mid] += perPerson;
             });
           }
         }
       } else {
-        balances[t.payerId] -= t.ntdAmount;
-        consumptions[t.payerId] += t.ntdAmount;
+        // 私帳：付款人自己的消費
+        privateSpending[t.payerId] += t.ntdAmount;
       }
     });
-    return { balances, consumptions };
+
+    state.members.forEach(m => {
+      balances[m.id] = prepaid[m.id] - publicPayable[m.id];
+    });
+
+    return { prepaid, publicPayable, privateSpending, balances };
   };
 
-  const { balances, consumptions } = calculateStats();
-  const myTotalCost = consumptions[state.currentUser] || 0;
+  const { prepaid, publicPayable, privateSpending, balances } = calculateStats();
+  const myTotalCost = (publicPayable[state.currentUser] || 0) + (privateSpending[state.currentUser] || 0);
+
+  // 計算目前登入者的各分類支出
+  const calculateCategoryStats = () => {
+    const stats: Record<string, number> = {};
+    state.transactions.forEach(t => {
+      let myShare = 0;
+      if (t.isSplit) {
+        if (t.customSplits && t.customSplits[state.currentUser] !== undefined) {
+          myShare = t.customSplits[state.currentUser] as number;
+        } else if (t.splitWith.includes(state.currentUser)) {
+          myShare = t.ntdAmount / t.splitWith.length;
+        }
+      } else if (t.payerId === state.currentUser) {
+        myShare = t.ntdAmount;
+      }
+
+      if (myShare > 0) {
+        stats[t.category] = (stats[t.category] || 0) + myShare;
+      }
+    });
+    return Object.entries(stats).sort((a, b) => b[1] - a[1]);
+  };
+
+  const myCategoryStats = calculateCategoryStats();
 
   const recentTransactions = [...state.transactions]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -153,7 +186,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
             <FileSpreadsheet size={24} className="text-[#1FA67A]" /> Balance Sheet
           </h2>
           <div className="bg-blue-500 text-white text-xs font-black px-3 py-1.5 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase tracking-widest">
-            Ledger
+            Settlement
           </div>
         </div>
         
@@ -162,8 +195,11 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
             const balance = balances[m.id];
             const isPositive = balance > 0;
             const isZero = Math.abs(balance) < 1;
-            const consumption = consumptions[m.id];
-            const consumptionPercent = totalExpense > 0 ? (consumption / totalExpense) * 100 : 0;
+            const myPrepaid = prepaid[m.id] || 0;
+            const myPublicPayable = publicPayable[m.id] || 0;
+            const myPrivateSpending = privateSpending[m.id] || 0;
+            const totalMyCost = myPublicPayable + myPrivateSpending;
+            const consumptionPercent = totalExpense > 0 ? (totalMyCost / totalExpense) * 100 : 0;
             const isMe = m.id === state.currentUser;
 
             const statusTextColor = isPositive ? 'text-[#1FA67A]' : isZero ? 'text-slate-400' : 'text-[#E64A4A]';
@@ -171,7 +207,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
             const statusLabel = isPositive ? 'CREDIT' : isZero ? 'EVEN' : 'DEBT';
 
             return (
-              <div key={m.id} className={`relative border-2 border-black rounded-[3rem] p-7 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all hover:-translate-y-1 ${cardBg}`}>
+              <div key={m.id} className={`relative border-2 border-black rounded-[2.5rem] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all hover:-translate-y-1 ${cardBg}`}>
                 <div className="absolute -top-3 -right-4 text-black/[0.04] font-black text-8xl italic pointer-events-none uppercase tracking-tighter select-none">
                   {statusLabel}
                 </div>
@@ -182,37 +218,85 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
                 )}
                 <div className="relative z-10 space-y-6">
                   <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 bg-[#F6D32D] border-2 border-black rounded-2xl flex items-center justify-center text-black font-black text-3xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-3deg] shrink-0">
+                    <div className="w-14 h-14 bg-[#F6D32D] border-2 border-black rounded-2xl flex items-center justify-center text-black font-black text-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-3deg] shrink-0">
                       {m.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-black text-2xl text-black truncate mb-3">{m.name}</div>
+                      <div className="font-black text-xl text-black truncate mb-2">{m.name}</div>
                       <div className="flex items-center gap-4">
-                        <div className="flex-1 h-2.5 bg-black/5 rounded-full overflow-hidden border border-black/10">
+                        <div className="flex-1 h-2 bg-black/5 rounded-full overflow-hidden border border-black/10">
                            <div className="h-full bg-[#1FA67A] rounded-full transition-all duration-1000" style={{ width: `${consumptionPercent}%` }} />
                         </div>
-                        <span className="text-xs font-black text-slate-400 italic shrink-0">{Math.round(consumptionPercent)}%</span>
+                        <span className="text-[10px] font-black text-slate-400 italic shrink-0">{Math.round(consumptionPercent)}%</span>
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white border-2 border-black rounded-2xl p-4 flex flex-col items-center justify-center">
-                       <span className="text-[11px] font-black text-slate-400 uppercase mb-2 italic tracking-wider">結算淨額</span>
-                       <div className={`text-2xl font-black italic ${statusTextColor}`}>
-                          {isPositive ? '+' : ''}{Math.round(balance).toLocaleString()}
-                       </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center bg-white/60 border-2 border-black/10 rounded-xl px-4 py-3">
+                      <span className="text-xs font-black text-slate-500 italic">公帳應付</span>
+                      <span className="text-sm font-black text-black">NT$ {Math.round(myPublicPayable).toLocaleString()}</span>
                     </div>
-                    <div className="bg-slate-50 border-2 border-black rounded-2xl p-4 flex flex-col items-center justify-center">
-                       <span className="text-[11px] font-black text-slate-400 uppercase mb-2 italic tracking-wider">個人消費</span>
-                       <div className="text-2xl font-black text-black italic">
-                          {Math.round(consumption).toLocaleString()}
-                       </div>
+                    <div className="flex justify-between items-center bg-white/60 border-2 border-black/10 rounded-xl px-4 py-3">
+                      <span className="text-xs font-black text-slate-500 italic">已墊付</span>
+                      <span className="text-sm font-black text-[#1FA67A]">NT$ {Math.round(myPrepaid).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white/60 border-2 border-black/10 rounded-xl px-4 py-3">
+                      <span className="text-xs font-black text-slate-500 italic">私帳消費</span>
+                      <span className="text-sm font-black text-slate-600">NT$ {Math.round(myPrivateSpending).toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t-2 border-black/5 flex justify-between items-center">
+                    <span className="text-sm font-black text-black italic">結算淨額</span>
+                    <div className={`text-2xl font-black italic ${statusTextColor}`}>
+                      {isPositive ? '+' : ''}{Math.round(balance).toLocaleString()}
                     </div>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* 新增：目前登入者的分類支出統計 */}
+      <section className="bg-white border-[3px] border-black rounded-[2.5rem] p-7 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center border-2 border-black">
+            <TrendingUp size={20} />
+          </div>
+          <h3 className="text-xl font-black italic text-black">我的分類支出統計</h3>
+        </div>
+
+        <div className="space-y-4">
+          {myCategoryStats.length > 0 ? (
+            myCategoryStats.map(([cat, amount]) => (
+              <div key={cat} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-black rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg border-2 border-black flex items-center justify-center ${(CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR).split(' ')[0]}`}>
+                    {React.cloneElement((CATEGORY_ICONS[cat] || DEFAULT_CATEGORY_ICON) as React.ReactElement<any>, { size: 18 })}
+                  </div>
+                  <span className="font-black text-sm text-black">{cat}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-black italic text-black">NT$ {Math.round(amount).toLocaleString()}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                    佔比 {Math.round((amount / myTotalCost) * 100)}%
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-slate-400 font-bold italic">
+              目前尚無任何消費記錄
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-6 pt-6 border-t-2 border-dashed border-slate-200 flex justify-between items-center">
+          <span className="text-sm font-black text-slate-500 italic">我的總花費合計</span>
+          <span className="text-2xl font-black italic text-blue-600">NT$ {Math.round(myTotalCost).toLocaleString()}</span>
         </div>
       </section>
     </div>
