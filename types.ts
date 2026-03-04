@@ -14,6 +14,7 @@ export interface Ledger {
   currency: string;
   exchangeRate: number;
   members: string[];
+  isVisible?: boolean;
 }
 
 export interface Transaction {

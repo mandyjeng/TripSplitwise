@@ -12,6 +12,7 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagement, onSwitchLedger }) => {
   const activeLedger = state.ledgers.find(l => l.id === state.activeLedgerId);
+  const visibleLedgers = state.ledgers.filter(l => l.isVisible !== false);
 
   const renderLedgerIcon = (name: string, isActive: boolean) => {
     const firstChar = name.charAt(0);
@@ -53,11 +54,11 @@ const Settings: React.FC<SettingsProps> = ({ state, updateState, onReloadManagem
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1 mb-1">
             <label className="text-xs font-black text-slate-500 uppercase tracking-widest">可切換的行程</label>
-            <span className="text-xs font-black text-blue-500 bg-blue-50 px-3 py-1 rounded-full">共 {state.ledgers.length} 個</span>
+            <span className="text-xs font-black text-blue-500 bg-blue-50 px-3 py-1 rounded-full">共 {visibleLedgers.length} 個</span>
           </div>
           
-          {state.ledgers.length > 0 ? (
-            state.ledgers.map(l => (
+          {visibleLedgers.length > 0 ? (
+            visibleLedgers.map(l => (
               <div key={l.id} className="flex items-center gap-1">
                 <button 
                   onClick={() => onSwitchLedger(l)}

@@ -42,6 +42,7 @@ export const fetchManagementConfig = async (url: string): Promise<{ ledgers: Led
     const rawLedgers = data.ledgers || [];
     const ledgers = rawLedgers.map((l: any) => {
       const sourceUrl = l['原始excel'] || l['原始Excel'] || l['sourceUrl'] || l['URL'] || '';
+      const isVisible = l['是否顯示'] !== '否'; // 預設為 true，除非明確標記為 '否'
       
       return {
         id: String(l['ID'] || l.id),
@@ -50,7 +51,8 @@ export const fetchManagementConfig = async (url: string): Promise<{ ledgers: Led
         sourceUrl: String(sourceUrl).trim(),
         currency: String(l['幣別'] || l.currency || 'TWD'),
         exchangeRate: Number(l['匯率'] || l.exchangeRate) || 1,
-        members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()).filter(Boolean) : []
+        members: l['旅伴'] || l.members ? String(l['旅伴'] || l.members).split(',').map((m: string) => m.trim()).filter(Boolean) : [],
+        isVisible
       };
     });
 
