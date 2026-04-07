@@ -424,10 +424,55 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             </div>
             
             <div className="space-y-5 max-h-[60vh] overflow-y-auto no-scrollbar pb-6 px-1">
-              <CustomSelect label="付款人" icon={UserCheck} value={editingItem.payerId} options={state.members.map(m => ({ id: m.id, name: m.name }))} isOpen={openDropdown === 'payer'} onToggle={() => setOpenDropdown(openDropdown === 'payer' ? null : 'payer')} onSelect={(id: string) => setEditingItem({...editingItem, payerId: id})} />
+              <CustomSelect label="付款人" icon={UserCheck} value={editingItem.payerId} options={state.members.map(m => ({ id: m.id, name: m.name }))} isOpen={openDropdown === 'payer'} onToggle={() => setOpenDropdown(openDropdown === 'payer' ? null : 'payer')} onSelect={(id: string) => {
+                const updates: any = { payerId: id };
+                if (editingItem.type === '私帳') {
+                  updates.splitWith = [id];
+                  updates.isSplit = false;
+                  if (editSplitMode === 'custom') {
+                    updates.customSplits = { [id]: editingItem.ntdAmount };
+                    updates.customOriginalSplits = { [id]: editingItem.originalAmount };
+                    setManualSplits({ [id]: editSplitCurrency === 'TWD' ? editingItem.ntdAmount : editingItem.originalAmount });
+                  }
+                }
+                setEditingItem({...editingItem, ...updates});
+              }} />
               <div className="grid grid-cols-2 gap-4">
                 <CustomSelect label="分類" icon={Tag} value={editingItem.category} options={(state.categories || []).map(c => ({ id: c, name: c }))} isOpen={openDropdown === 'category'} onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')} onSelect={(cat: any) => setEditingItem({...editingItem, category: cat})} />
-                <CustomSelect label="帳務類型" icon={CreditCard} value={editingItem.type} options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]} isOpen={openDropdown === 'type'} onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')} onSelect={(type: any) => setEditingItem({...editingItem, type})} />
+                <CustomSelect label="帳務類型" icon={CreditCard} value={editingItem.type} options={[{id: '公帳', name: '公帳'}, {id: '私帳', name: '私帳'}]} isOpen={openDropdown === 'type'} onToggle={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')} onSelect={(type: any) => {
+                  const updates: any = { type };
+                  if (type === '私帳') {
+                    updates.splitWith = [editingItem.payerId];
+                    updates.isSplit = false;
+                    if (editSplitMode === 'custom') {
+                      updates.customSplits = { [editingItem.payerId]: editingItem.ntdAmount };
+                      updates.customOriginalSplits = { [editingItem.payerId]: editingItem.originalAmount };
+                      setManualSplits({ [editingItem.payerId]: editSplitCurrency === 'TWD' ? editingItem.ntdAmount : editingItem.originalAmount });
+                    }
+                  } else {
+                    // 切換回公帳時，如果只有一個人，預設選全部人
+                    if (editingItem.splitWith.length <= 1) {
+                      updates.splitWith = state.members.map(m => m.id);
+                      updates.isSplit = true;
+                      if (editSplitMode === 'custom') {
+                        const perNtd = Math.round(editingItem.ntdAmount / state.members.length);
+                        const perOri = editingItem.originalAmount / state.members.length;
+                        const sNtd: Record<string, number> = {};
+                        const sOri: Record<string, number> = {};
+                        const m: Record<string, number> = {};
+                        state.members.forEach(mem => {
+                          sNtd[mem.id] = perNtd;
+                          sOri[mem.id] = perOri;
+                          m[mem.id] = editSplitCurrency === 'TWD' ? perNtd : perOri;
+                        });
+                        updates.customSplits = sNtd;
+                        updates.customOriginalSplits = sOri;
+                        setManualSplits(m);
+                      }
+                    }
+                  }
+                  setEditingItem({...editingItem, ...updates});
+                }} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-3 rounded-xl border-2 border-black"><label className="text-[11px] font-black text-slate-500 mb-1.5 block uppercase tracking-wider">日期</label><input type="date" className="w-full bg-transparent font-black text-sm p-0 border-none focus:ring-0" value={editingItem.date} onChange={e => setEditingItem({...editingItem, date: e.target.value})} /></div>

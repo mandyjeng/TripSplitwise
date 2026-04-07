@@ -277,6 +277,11 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                 const updates: any = { payerId: id };
                 if (pendingRecord.type === '私帳') {
                   updates.splitWith = [id];
+                  updates.isSplit = false;
+                  if (splitMode === 'custom') {
+                    updates.customSplits = { [id]: pendingRecord.ntdAmount };
+                    setManualSplits({ [id]: customSplitCurrency === 'TWD' ? pendingRecord.ntdAmount : pendingRecord.originalAmount });
+                  }
                 }
                 setPendingRecord({ ...pendingRecord, ...updates });
               }} />
@@ -286,6 +291,29 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                   const updates: any = { type };
                   if (type === '私帳') {
                     updates.splitWith = [pendingRecord.payerId];
+                    updates.isSplit = false;
+                    if (splitMode === 'custom') {
+                      updates.customSplits = { [pendingRecord.payerId]: pendingRecord.ntdAmount };
+                      setManualSplits({ [pendingRecord.payerId]: customSplitCurrency === 'TWD' ? pendingRecord.ntdAmount : pendingRecord.originalAmount });
+                    }
+                  } else {
+                    // 切換回公帳時，如果只有一個人，預設選全部人
+                    if ((pendingRecord.splitWith || []).length <= 1) {
+                      updates.splitWith = members.map(m => m.id);
+                      updates.isSplit = true;
+                      if (splitMode === 'custom') {
+                        const perNtd = Math.round(pendingRecord.ntdAmount / members.length);
+                        const perOri = pendingRecord.originalAmount / members.length;
+                        const sNtd: Record<string, number> = {};
+                        const m: Record<string, number> = {};
+                        members.forEach(mem => {
+                          sNtd[mem.id] = perNtd;
+                          m[mem.id] = customSplitCurrency === 'TWD' ? perNtd : perOri;
+                        });
+                        updates.customSplits = sNtd;
+                        setManualSplits(m);
+                      }
+                    }
                   }
                   setPendingRecord({ ...pendingRecord, ...updates });
                 }} />
