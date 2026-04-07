@@ -485,7 +485,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full z-10 tracking-widest uppercase">Rate: 1:{currentEffectiveRate.toFixed(2)}</div>
               </div>
 
-              <div className="bg-slate-100 p-1.5 rounded-2xl flex border-2 border-black mt-2">
+              <div className={`bg-slate-100 p-1.5 rounded-2xl flex border-2 border-black mt-2 transition-all ${editingItem.type === '私帳' ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
                 <button onClick={() => {
                   setEditSplitMode('equal');
                   const s = editingItem.splitWith || [];
@@ -515,8 +515,15 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 }} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${editSplitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black shadow-sm' : 'text-slate-400'}`}>手動</button>
               </div>
 
-              <div className="bg-slate-50 p-5 rounded-[2rem] border-2 border-black space-y-4">
-                <div className="flex justify-between items-center mb-3">
+              <div className={`bg-slate-50 p-5 rounded-[2rem] border-2 border-black space-y-4 relative transition-all ${editingItem.type === '私帳' ? 'bg-slate-100/50 border-slate-200' : ''}`}>
+                {editingItem.type === '私帳' && (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/40 backdrop-blur-[1px] rounded-[2rem]">
+                    <div className="bg-white border-2 border-black px-4 py-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 rotate-[-2deg]">
+                      <span className="text-xs font-black italic text-slate-500">私帳模式：僅計入個人花費</span>
+                    </div>
+                  </div>
+                )}
+                <div className={`flex justify-between items-center mb-3 ${editingItem.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
                   <div className="flex bg-white p-1 rounded-xl border-2 border-black">
                     <button onClick={() => { setEditSplitCurrency('TWD'); const nM:Record<string,number>={}; Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=(v as number); }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣</button>
                     <button onClick={() => { setEditSplitCurrency('ORIGINAL'); const nM:Record<string,number>={}; Object.entries(editingItem.customOriginalSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=(v as number); }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣</button>
@@ -526,7 +533,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   </div>
                 </div>
                 
-                <div className="space-y-4">
+                <div className={`space-y-4 ${editingItem.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
                   {state.members.map(m => {
                     const isSelected = editingItem.splitWith?.includes(m.id);
                     const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';

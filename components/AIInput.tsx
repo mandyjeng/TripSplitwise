@@ -329,7 +329,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] font-black px-2 py-0.5 rounded-full z-10">Rate: 1:{currentEffectiveRate.toFixed(2)}</div>
               </div>
 
-              <div className="bg-slate-100 p-1 rounded-xl flex border-2 border-black">
+              <div className={`bg-slate-100 p-1 rounded-xl flex border-2 border-black transition-all ${pendingRecord.type === '私帳' ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
                 <button onClick={() => {
                   setSplitMode('equal');
                   const s = pendingRecord.splitWith || [];
@@ -338,8 +338,15 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                 <button onClick={switchToCustomMode} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}><Calculator size={14} /> 手動</button>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-3xl border-2 border-black space-y-3">
-                <div className="flex justify-between items-center mb-2">
+              <div className={`bg-slate-50 p-4 rounded-3xl border-2 border-black space-y-3 relative transition-all ${pendingRecord.type === '私帳' ? 'bg-slate-100/50 border-slate-200' : ''}`}>
+                {pendingRecord.type === '私帳' && (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/40 backdrop-blur-[1px] rounded-3xl">
+                    <div className="bg-white border-2 border-black px-3 py-1.5 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 rotate-[-1deg]">
+                      <span className="text-[10px] font-black italic text-slate-500">私帳模式：不參與分帳</span>
+                    </div>
+                  </div>
+                )}
+                <div className={`flex justify-between items-center mb-2 ${pendingRecord.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
                   <div className="flex bg-white p-1 rounded-lg border-2 border-black">
                     <button onClick={() => {
                       setCustomSplitCurrency('TWD');
@@ -363,7 +370,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                   </div>
                 </div>
                 
-                <div className="space-y-3">
+                <div className={`space-y-3 ${pendingRecord.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
                   {members.map(m => {
                     const isSelected = pendingRecord.splitWith?.includes(m.id);
                     const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
