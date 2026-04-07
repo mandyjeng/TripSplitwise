@@ -1,6 +1,11 @@
 // api/analyze.ts
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
+
+// 讀取環境變數，如果沒設定則預設使用 gemini-flash-latest
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+
+
 // 初始化 Gemini
 // 請確保 Vercel 環境變數有設定 GOOGLE_API_KEY
 const ai = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
@@ -60,7 +65,7 @@ export default async function handler(req: any, res: any) {
       if (!text) throw new Error("缺少文字內容");
 
       modelParams = {
-        model: "gemini-flash-latest",
+        model: GEMINI_MODEL,
         contents: [
           {
             role: "user",
@@ -94,7 +99,7 @@ export default async function handler(req: any, res: any) {
       const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
 
       modelParams = {
-        model: 'gemini-flash-latest', 
+        model: GEMINI_MODEL, 
         contents: [
           {
             role: "user",
