@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Camera, Send, Check, X, Image as ImageIcon, Sparkles, Zap, Users, Calculator, ArrowRightLeft, UserCheck, Tag, CreditCard, ChevronDown, Loader2 } from 'lucide-react';
+import { Camera, Send, Check, X, Image as ImageIcon, Sparkles, Zap, Users, Calculator, ArrowRightLeft, UserCheck, Tag, CreditCard, ChevronDown, Loader2, PlusCircle } from 'lucide-react';
 import { processAIInput, processReceiptImage } from '../services/gemini';
 import { Transaction, Category, Member } from '../types';
 import { CATEGORY_ICONS, CATEGORY_COLORS, DEFAULT_CATEGORY_ICON, DEFAULT_CATEGORY_COLOR } from '../constants';
@@ -18,7 +18,7 @@ interface AIInputProps {
 const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories = [], exchangeRate, defaultCurrency, setIsAIProcessing, currentUserId }) => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' }) | null>(null);
+  const [pendingRecord, setPendingRecord] = useState<(Partial<Transaction> & { source?: 'text' | 'image' | 'manual' }) | null>(null);
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
   const [customSplitCurrency, setCustomSplitCurrency] = useState<'ORIGINAL' | 'TWD'>('ORIGINAL');
   
@@ -73,18 +73,29 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
     reader.readAsDataURL(file);
   };
 
-  const preparePendingRecord = (data: any, source: 'text' | 'image') => {
+  const handleManualAdd = () => {
+    preparePendingRecord({
+      merchant: '',
+      item: '',
+      amount: 0,
+      currency: defaultCurrency,
+      category: '用餐',
+      date: new Date().toISOString().split('T')[0]
+    }, 'manual');
+  };
+
+  const preparePendingRecord = (data: any, source: 'text' | 'image' | 'manual') => {
     const currency = data.currency?.toUpperCase() || defaultCurrency;
     const amount = Number(data.amount) || 0;
     const ntdAmount = currency === 'TWD' ? amount : Math.round(amount * exchangeRate);
 
     setPendingRecord({
       source,
-      merchant: data.merchant || '未指定店家',
-      item: data.item || '未命名項目',
+      merchant: data.merchant || (source === 'manual' ? '' : '未指定店家'),
+      item: data.item || (source === 'manual' ? '' : '未命名項目'),
       originalAmount: amount,
       currency: currency,
-      category: (categories.includes(data.category as Category) ? data.category : (categories[0] || '雜項')) as Category,
+      category: (categories.includes(data.category as Category) ? data.category : (categories.find(c => c === '用餐') || categories[0] || '雜項')) as Category,
       date: (data.date || new Date().toISOString()).split('T')[0],
       ntdAmount: ntdAmount,
       payerId: currentUserId || members[0]?.id || '',
@@ -242,8 +253,9 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
           </button>
         </div>
         <div className="flex gap-2 mt-3">
-          <button onClick={() => fileInputRef.current?.click()} className="flex-1 bg-white border-2 border-black py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all"><ImageIcon size={16} /> 選擇相片</button>
-          <button onClick={() => cameraInputRef.current?.click()} className="flex-1 bg-[#F6D32D] border-2 border-black py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all"><Camera size={16} /> 拍照識別</button>
+          <button onClick={() => fileInputRef.current?.click()} className="flex-1 bg-white border-2 border-black py-2.5 rounded-xl flex items-center justify-center gap-2 text-[10px] sm:text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all"><ImageIcon size={14} /> 選擇相片</button>
+          <button onClick={() => cameraInputRef.current?.click()} className="flex-1 bg-[#F6D32D] border-2 border-black py-2.5 rounded-xl flex items-center justify-center gap-2 text-[10px] sm:text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all"><Camera size={14} /> 拍照識別</button>
+          <button onClick={handleManualAdd} className="flex-1 bg-white border-2 border-black py-2.5 rounded-xl flex items-center justify-center gap-2 text-[10px] sm:text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all"><PlusCircle size={14} /> 手動輸入</button>
         </div>
         <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageUpload} />
         <input type="file" ref={cameraInputRef} hidden accept="image/*" capture="environment" onChange={handleImageUpload} />
@@ -253,7 +265,10 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white border-t-4 sm:border-4 border-black rounded-t-[2.5rem] sm:rounded-[2.5rem] w-full max-w-md p-6 comic-shadow relative animate-in slide-in-from-bottom overflow-hidden">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black italic flex items-center gap-2"><Sparkles className="text-[#F6D32D]" size={24} /> 確認帳務</h3>
+              <h3 className="text-xl font-black italic flex items-center gap-2">
+                {pendingRecord.source === 'manual' ? <PlusCircle className="text-[#F6D32D]" size={24} /> : <Sparkles className="text-[#F6D32D]" size={24} />}
+                {pendingRecord.source === 'manual' ? '新增消費' : '確認帳務'}
+              </h3>
               <button onClick={() => setPendingRecord(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={24} /></button>
             </div>
 
