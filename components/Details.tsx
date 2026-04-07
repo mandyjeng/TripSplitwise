@@ -138,7 +138,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       ...editingItem,
       customSplits: newNtdSplits,
       customOriginalSplits: newOriSplits,
-      type: (effectiveCount === 1 ? '私帳' : '公帳') as any
+      type: (effectiveCount === 1 ? '私帳' : '公帳') as any,
+      isSplit: effectiveCount > 1
     });
   };
 
@@ -168,6 +169,9 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         finalItem.customSplits = cleanedNtd;
         finalItem.customOriginalSplits = cleanedOri;
       }
+
+      finalItem.isSplit = finalItem.splitWith.length > 1;
+      finalItem.type = finalItem.isSplit ? '公帳' : '私帳';
       
       const newList = state.transactions.map(t => t.id === finalItem.id ? { ...finalItem } : t);
       if (state.sheetUrl && finalItem.rowIndex !== undefined) {
@@ -440,7 +444,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 <button onClick={() => {
                   setEditSplitMode('equal');
                   const s = editingItem.splitWith || [];
-                  setEditingItem({ ...editingItem, type: s.length === 1 ? '私帳' : '公帳' });
+                  setEditingItem({ ...editingItem, type: s.length === 1 ? '私帳' : '公帳', isSplit: s.length > 1 });
                 }} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${editSplitMode === 'equal' ? 'bg-black text-white shadow-md' : 'text-slate-400'}`}>均分</button>
                 <button onClick={() => { 
                   setEditSplitMode('custom'); 
@@ -459,7 +463,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                         m[id]=perOri;
                       } 
                     });
-                    setEditingItem({ ...editingItem, customSplits:sNtd, customOriginalSplits:sOri, splitWith, type: (splitWith.length === 1 ? '私帳' : '公帳') as any });
+                    setEditingItem({ ...editingItem, customSplits:sNtd, customOriginalSplits:sOri, splitWith, type: (splitWith.length === 1 ? '私帳' : '公帳') as any, isSplit: splitWith.length > 1 });
                     setManualSplits(m);
                     setEditSplitCurrency('ORIGINAL');
                   }
@@ -492,7 +496,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                              const s = editingItem.splitWith || []; 
                              const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
                              const newType = (editSplitMode === 'equal' && newSplitWith.length === 1) ? '私帳' : (editSplitMode === 'equal' && newSplitWith.length > 1) ? '公帳' : editingItem.type;
-                             setEditingItem({ ...editingItem, splitWith: newSplitWith, type: newType as any }); 
+                             setEditingItem({ ...editingItem, splitWith: newSplitWith, type: newType as any, isSplit: newType === '公帳' }); 
                           }} className={`flex-1 flex justify-between items-center p-3 rounded-xl border-2 transition-all ${isSelected ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-slate-100 text-slate-300'}`}>
                             <span className="text-base font-black italic">{m.name}</span>
                             {editSplitMode === 'equal' && isSelected && <Check size={18} className="text-[#1FA67A]" />}
