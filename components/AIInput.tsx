@@ -62,9 +62,20 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
       try {
         const result = await processReceiptImage(base64);
         preparePendingRecord(result, 'image');
-      } catch (error) {
-        console.error(error);
-        alert('AI圖片處理失敗');
+      } catch (error:any) {
+        console.error("Analysis Failed:", error);
+
+        // 因為我們在 service 層封裝了 AIProcessingError
+        const modelName = error.model || "未知模型";
+        const status = error.status ? `[Status: ${error.status}]` : "";
+        
+        alert(
+          `⚠️ AI 處理失敗\n\n` +
+          `【使用模型】: ${modelName}\n` +
+          `【錯誤原因】: ${error.message}\n` +
+          `${status}\n\n` +
+          `💡 提示：如果是 503 請重新嘗試；429 請明天再試。`
+        );
       } finally {
         setIsLoading(false);
         e.target.value = '';
