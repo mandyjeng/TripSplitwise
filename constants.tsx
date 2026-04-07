@@ -8,6 +8,9 @@ import {
   ShieldCheck, 
   Plane,
   MoreHorizontal,
+  ShoppingBag,
+  Ship,
+  Package,
   LayoutDashboard,
   ListOrdered,
   Settings as SettingsIcon,
@@ -29,7 +32,9 @@ export const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   '門票': <Ticket size={18} />,
   '保險': <ShieldCheck size={18} />,
   '機票': <Plane size={18} />,
-  '雜項': <MoreHorizontal size={18} />,
+  '購物': <ShoppingBag size={18} />,
+  '船票': <Ship size={18} />,
+  '雜項': <Package size={18} />,
   '個人消費': <UserCheck size={18} />,
 };
 
@@ -40,8 +45,10 @@ export const CATEGORY_COLORS: Record<string, string> = {
   '門票': 'bg-purple-100 text-purple-600',
   '保險': 'bg-teal-100 text-teal-600',
   '機票': 'bg-sky-100 text-sky-600',
+  '購物': 'bg-pink-100 text-pink-600',
+  '船票': 'bg-cyan-100 text-cyan-600',
   '雜項': 'bg-gray-100 text-gray-600',
-  '個人消費': 'bg-pink-100 text-pink-600',
+  '個人消費': 'bg-rose-100 text-rose-600',
 };
 
 // 預設樣式 (當 Excel 中的分類不在上面的對照表時使用)
