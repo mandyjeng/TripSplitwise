@@ -62,20 +62,9 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
       try {
         const result = await processReceiptImage(base64);
         preparePendingRecord(result, 'image');
-      } catch (error:any) {
-        console.error("Analysis Failed:", error);
-
-        // 因為我們在 service 層封裝了 AIProcessingError
-        const modelName = error.model || "未知模型";
-        const status = error.status ? `[Status: ${error.status}]` : "";
-        
-        alert(
-          `⚠️ AI 處理失敗\n\n` +
-          `【使用模型】: ${modelName}\n` +
-          `【錯誤原因】: ${error.message}\n` +
-          `${status}\n\n` +
-          `💡 提示：如果是 503 請重新嘗試；429 請明天再試。`
-        );
+      } catch (error) {
+        console.error(error);
+        alert('AI圖片處理失敗');
       } finally {
         setIsLoading(false);
         e.target.value = '';
@@ -149,6 +138,12 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
 
   const isSplitBalanced = splitMode === 'equal' || Math.abs(remainingAmount) < 0.1;
 
+  const isShared = useMemo(() => {
+    if (!pendingRecord) return false;
+    const s = pendingRecord.splitWith || [];
+    return s.length > 1 || (s.length === 1 && s[0] !== pendingRecord.payerId);
+  }, [pendingRecord?.splitWith, pendingRecord?.payerId]);
+
   const handleTotalNtdChange = (newTotal: number) => {
     setPendingRecord(prev => {
       if (!prev || !prev.originalAmount) return prev ? { ...prev, ntdAmount: newTotal } : prev;
@@ -191,8 +186,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
     
     setPendingRecord({
       ...pendingRecord,
-      customSplits: newCustomSplits,
-      type: (effectiveCount === 1 ? '私帳' : '公帳') as any
+      customSplits: newCustomSplits
     });
   };
 
@@ -211,8 +205,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
     });
     setPendingRecord({ 
       ...pendingRecord, 
-      customSplits: initSplits,
-      type: (splitWith.length === 1 ? '私帳' : '公帳') as any
+      customSplits: initSplits
     });
     setManualSplits(initManual);
   };
@@ -340,24 +333,16 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] font-black px-2 py-0.5 rounded-full z-10">Rate: 1:{currentEffectiveRate.toFixed(2)}</div>
               </div>
 
-              <div className={`bg-slate-100 p-1 rounded-xl flex border-2 border-black transition-all ${pendingRecord.type === '私帳' ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+              <div className={`bg-slate-100 p-1 rounded-xl flex border-2 border-black transition-all ${pendingRecord.type === '私帳' && !isShared ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
                 <button onClick={() => {
                   setSplitMode('equal');
-                  const s = pendingRecord.splitWith || [];
-                  setPendingRecord({ ...pendingRecord, type: s.length === 1 ? '私帳' : '公帳' });
+                  setPendingRecord({ ...pendingRecord, isSplit: true });
                 }} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'equal' ? 'bg-black text-white shadow-sm' : 'text-slate-400'}`}><Users size={14} /> 均分</button>
                 <button onClick={switchToCustomMode} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 ${splitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black' : 'text-slate-400'}`}><Calculator size={14} /> 手動</button>
               </div>
 
-              <div className={`bg-slate-50 p-4 rounded-3xl border-2 border-black space-y-3 relative transition-all ${pendingRecord.type === '私帳' ? 'bg-slate-100/50 border-slate-200' : ''}`}>
-                {pendingRecord.type === '私帳' && (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/40 backdrop-blur-[1px] rounded-3xl">
-                    <div className="bg-white border-2 border-black px-3 py-1.5 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 rotate-[-1deg]">
-                      <span className="text-[10px] font-black italic text-slate-500">私帳模式：不參與分帳</span>
-                    </div>
-                  </div>
-                )}
-                <div className={`flex justify-between items-center mb-2 ${pendingRecord.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
+              <div className={`bg-slate-50 p-4 rounded-3xl border-2 border-black space-y-3 relative transition-all ${pendingRecord.type === '私帳' && !isShared ? 'bg-slate-100/50 border-slate-200' : ''}`}>
+                <div className={`flex justify-between items-center mb-2 ${pendingRecord.type === '私帳' && !isShared ? 'opacity-20 pointer-events-none' : ''}`}>
                   <div className="flex bg-white p-1 rounded-lg border-2 border-black">
                     <button onClick={() => {
                       setCustomSplitCurrency('TWD');
@@ -381,44 +366,119 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                   </div>
                 </div>
                 
-                <div className={`space-y-3 ${pendingRecord.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
-                  {members.map(m => {
-                    const isSelected = pendingRecord.splitWith?.includes(m.id);
-                    const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
-                    const ntdVal = (pendingRecord.customSplits?.[m.id] as number) || 0;
-                    const refLabel = (isSelected && ntdVal > 0) ? (customSplitCurrency === 'TWD' ? `≈ ${(ntdVal / currentEffectiveRate).toFixed(2)} ${pendingRecord.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
-
-                    return (
-                      <div key={m.id} className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => { 
-                            const s = pendingRecord.splitWith || []; 
-                            const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
-                            
-                            const newType = (splitMode === 'equal' && newSplitWith.length === 1) ? '私帳' : 
-                                           (splitMode === 'equal' && newSplitWith.length > 1) ? '公帳' : pendingRecord.type;
-
-                            setPendingRecord({
-                              ...pendingRecord, 
-                              splitWith: newSplitWith,
-                              type: newType as any
-                            }); 
-                          }} className={`flex-1 flex justify-between p-2.5 rounded-xl border-2 ${isSelected ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-slate-100 text-slate-300'}`}>
-                            <span className="text-sm font-black">{m.name}</span>
-                            {splitMode === 'equal' && isSelected && <Check size={16} className="text-[#1FA67A]" />}
-                          </button>
-                          
-                          {splitMode === 'custom' && isSelected && (
-                            <div className="relative w-32">
-                              <input type="number" className="w-full bg-white border-2 border-black rounded-xl px-3 py-2 text-sm font-black outline-none" value={displayValue} onChange={e => handleCustomSplitChange(m.id, e.target.value)} />
-                              <button onClick={() => handleCustomSplitChange(m.id, ((manualSplits[m.id]||0) + remainingAmount).toString())} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#F6D32D]"><Zap size={14} fill="currentColor" /></button>
-                            </div>
-                          )}
-                        </div>
-                        {splitMode === 'custom' && refLabel && <div className="text-[9px] font-black text-slate-400 text-right pr-2 italic">{refLabel}</div>}
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-black text-slate-400">分攤成員（受惠者）</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      className="w-3.5 h-3.5 rounded border border-black checked:bg-[#F6D32D] checked:border-black focus:ring-0 text-black"
+                      checked={!pendingRecord.splitWith?.includes(pendingRecord.payerId)}
+                      onChange={(e) => {
+                        const isPayOnBehalf = e.target.checked;
+                        const s = pendingRecord.splitWith || [];
+                        let newSplitWith = [...s];
+                        if (isPayOnBehalf) {
+                          newSplitWith = newSplitWith.filter(id => id !== pendingRecord.payerId);
+                          if (newSplitWith.length === 0) {
+                            newSplitWith = members.map(m => m.id).filter(id => id !== pendingRecord.payerId);
+                          }
+                        } else {
+                          if (!newSplitWith.includes(pendingRecord.payerId)) {
+                            newSplitWith.push(pendingRecord.payerId);
+                          }
+                        }
+                        
+                        if (splitMode === 'custom') {
+                          const perNtd = Math.round(pendingRecord.ntdAmount / newSplitWith.length);
+                          const perOri = pendingRecord.originalAmount / newSplitWith.length;
+                          const sNtd: Record<string, number> = {};
+                          const m = {};
+                          newSplitWith.forEach(id => {
+                            sNtd[id] = perNtd;
+                            m[id] = customSplitCurrency === 'TWD' ? perNtd : perOri;
+                          });
+                          setPendingRecord({
+                            ...pendingRecord,
+                            splitWith: newSplitWith,
+                            isSplit: true,
+                            customSplits: sNtd
+                          });
+                          setManualSplits(m);
+                        } else {
+                          setPendingRecord({
+                            ...pendingRecord,
+                            splitWith: newSplitWith,
+                            isSplit: true
+                          });
+                        }
+                      }}
+                    />
+                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">代付模式 (排除付款人)</span>
+                  </label>
+                </div>
+                
+                <div className="relative">
+                  {pendingRecord.type === '私帳' && !isShared && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-[1px] rounded-3xl">
+                      <div className="bg-white border-2 border-black px-3 py-1.5 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 rotate-[-1deg]">
+                        <span className="text-[10px] font-black italic text-slate-500">私帳模式：不參與分帳</span>
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
+
+                  <div className={`space-y-3 ${pendingRecord.type === '私帳' && !isShared ? 'opacity-20 pointer-events-none' : ''}`}>
+                    {members.map(m => {
+                      const isSelected = pendingRecord.splitWith?.includes(m.id);
+                      const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
+                      const ntdVal = (pendingRecord.customSplits?.[m.id] as number) || 0;
+                      const refLabel = (isSelected && ntdVal > 0) ? (customSplitCurrency === 'TWD' ? `≈ ${(ntdVal / currentEffectiveRate).toFixed(2)} ${pendingRecord.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
+
+                      return (
+                        <div key={m.id} className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => { 
+                               const s = pendingRecord.splitWith || []; 
+                               const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
+                               if (splitMode === 'custom') {
+                                 const perNtd = Math.round(pendingRecord.ntdAmount / newSplitWith.length);
+                                 const perOri = pendingRecord.originalAmount / newSplitWith.length;
+                                 const sNtd: Record<string, number> = {};
+                                 const mSplits: Record<string, number> = {};
+                                 newSplitWith.forEach(id => {
+                                   sNtd[id] = perNtd;
+                                   mSplits[id] = customSplitCurrency === 'TWD' ? perNtd : perOri;
+                                 });
+                                 setPendingRecord({
+                                   ...pendingRecord,
+                                   splitWith: newSplitWith,
+                                   isSplit: true,
+                                   customSplits: sNtd
+                                 });
+                                 setManualSplits(mSplits);
+                               } else {
+                                 setPendingRecord({
+                                   ...pendingRecord,
+                                   splitWith: newSplitWith,
+                                   isSplit: true
+                                 });
+                               }
+                            }} className={`flex-1 flex justify-between p-2.5 rounded-xl border-2 ${isSelected ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-slate-100 text-slate-300'}`}>
+                              <span className="text-sm font-black">{m.name}</span>
+                              {splitMode === 'equal' && isSelected && <Check size={16} className="text-[#1FA67A]" />}
+                            </button>
+                            
+                            {splitMode === 'custom' && isSelected && (
+                              <div className="relative w-32">
+                                <input type="number" className="w-full bg-white border-2 border-black rounded-xl px-3 py-2 text-sm font-black outline-none" value={displayValue} onChange={e => handleCustomSplitChange(m.id, e.target.value)} />
+                                <button onClick={() => handleCustomSplitChange(m.id, ((manualSplits[m.id]||0) + remainingAmount).toString())} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#F6D32D]"><Zap size={14} fill="currentColor" /></button>
+                              </div>
+                            )}
+                          </div>
+                          {splitMode === 'custom' && refLabel && <div className="text-[9px] font-black text-slate-400 text-right pr-2 italic">{refLabel}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -442,6 +502,7 @@ const AIInput: React.FC<AIInputProps> = ({ onAddTransaction, members, categories
                 final.splitWith = final.splitWith?.filter(id => id && id !== '');
                 final.customSplits = undefined;
               }
+              final.isSplit = final.type === '公帳' || isShared;
               onAddTransaction(final);
               setPendingRecord(null);
             }} disabled={!isSplitBalanced || (pendingRecord.splitWith?.length || 0) === 0} className={`w-full py-4 rounded-2xl font-black text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 transition-all ${isSplitBalanced && (pendingRecord.splitWith?.length || 0) > 0 ? 'bg-black text-white' : 'bg-slate-200 text-slate-400'}`}>確認加入帳本</button>

@@ -154,11 +154,13 @@ const App: React.FC = () => {
     setIsMutating(true);
     const payerId = t.payerId || state.currentUser;
     
-    // 邏輯修正：如果類型是私帳，或者參與人數只有1人，則強制為不拆帳
-    const isPrivate = t.type === '私帳' || (t.splitWith && t.splitWith.length === 1);
-    const finalIsSplit = isPrivate ? false : (t.isSplit ?? true);
-    const finalSplitWith = finalIsSplit ? (t.splitWith || state.members.map(m => m.id)) : [payerId];
-    const finalType = finalIsSplit ? '公帳' : '私帳';
+    const finalSplitWith = t.splitWith && t.splitWith.length > 0
+      ? t.splitWith
+      : (t.type === '公帳' ? state.members.map(m => m.id) : [payerId]);
+
+    const isShared = finalSplitWith.length > 1 || (finalSplitWith.length === 1 && finalSplitWith[0] !== payerId);
+    const finalIsSplit = t.isSplit ?? isShared;
+    const finalType = t.type || (finalIsSplit ? '公帳' : '私帳');
 
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),

@@ -90,6 +90,12 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
 
   const isSplitBalanced = editSplitMode === 'equal' || Math.abs(remainingAmount) < 0.1;
 
+  const isShared = useMemo(() => {
+    if (!editingItem) return false;
+    const s = editingItem.splitWith || [];
+    return s.length > 1 || (s.length === 1 && s[0] !== editingItem.payerId);
+  }, [editingItem?.splitWith, editingItem?.payerId]);
+
   const handleTotalNtdChange = (newTotal: number) => {
     setEditingItem(prev => {
       if (!prev || !prev.originalAmount) return prev ? { ...prev, ntdAmount: newTotal } : prev;
@@ -138,8 +144,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       ...editingItem,
       customSplits: newNtdSplits,
       customOriginalSplits: newOriSplits,
-      type: (effectiveCount === 1 ? '私帳' : '公帳') as any,
-      isSplit: effectiveCount > 1
+      isSplit: effectiveCount > 1 || (effectiveCount === 1 && Object.keys(newOriSplits)[0] !== editingItem.payerId)
     });
   };
 
@@ -170,8 +175,8 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
         finalItem.customOriginalSplits = cleanedOri;
       }
 
-      finalItem.isSplit = finalItem.splitWith.length > 1;
-      finalItem.type = finalItem.isSplit ? '公帳' : '私帳';
+      const isShared = finalItem.splitWith.length > 1 || (finalItem.splitWith.length === 1 && finalItem.splitWith[0] !== finalItem.payerId);
+      finalItem.isSplit = isShared;
       
       const newList = state.transactions.map(t => t.id === finalItem.id ? { ...finalItem } : t);
       if (state.sheetUrl && finalItem.rowIndex !== undefined) {
@@ -383,7 +388,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                           <User size={11} />
                           <span>{payer?.name || t.payerId}</span>
                         </div>
-                        {t.isSplit && t.type === '公帳' && (
+                        {t.isSplit && (
                           <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-400">
                             <Users size={11} />
                             {isAllSplit ? (
@@ -485,11 +490,10 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                 <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full z-10 tracking-widest uppercase">Rate: 1:{currentEffectiveRate.toFixed(2)}</div>
               </div>
 
-              <div className={`bg-slate-100 p-1.5 rounded-2xl flex border-2 border-black mt-2 transition-all ${editingItem.type === '私帳' ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+              <div className={`bg-slate-100 p-1.5 rounded-2xl flex border-2 border-black mt-2 transition-all ${editingItem.type === '私帳' && !isShared ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
                 <button onClick={() => {
                   setEditSplitMode('equal');
-                  const s = editingItem.splitWith || [];
-                  setEditingItem({ ...editingItem, type: s.length === 1 ? '私帳' : '公帳', isSplit: s.length > 1 });
+                  setEditingItem({ ...editingItem, isSplit: true });
                 }} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${editSplitMode === 'equal' ? 'bg-black text-white shadow-md' : 'text-slate-400'}`}>均分</button>
                 <button onClick={() => { 
                   setEditSplitMode('custom'); 
@@ -508,22 +512,15 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                         m[id]=perOri;
                       } 
                     });
-                    setEditingItem({ ...editingItem, customSplits:sNtd, customOriginalSplits:sOri, splitWith, type: (splitWith.length === 1 ? '私帳' : '公帳') as any, isSplit: splitWith.length > 1 });
+                    setEditingItem({ ...editingItem, customSplits:sNtd, customOriginalSplits:sOri, splitWith, isSplit: true });
                     setManualSplits(m);
                     setEditSplitCurrency('ORIGINAL');
                   }
                 }} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${editSplitMode === 'custom' ? 'bg-[#F6D32D] text-black border-2 border-black shadow-sm' : 'text-slate-400'}`}>手動</button>
               </div>
 
-              <div className={`bg-slate-50 p-5 rounded-[2rem] border-2 border-black space-y-4 relative transition-all ${editingItem.type === '私帳' ? 'bg-slate-100/50 border-slate-200' : ''}`}>
-                {editingItem.type === '私帳' && (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/40 backdrop-blur-[1px] rounded-[2rem]">
-                    <div className="bg-white border-2 border-black px-4 py-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 rotate-[-2deg]">
-                      <span className="text-xs font-black italic text-slate-500">私帳模式：僅計入個人花費</span>
-                    </div>
-                  </div>
-                )}
-                <div className={`flex justify-between items-center mb-3 ${editingItem.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
+              <div className={`bg-slate-50 p-5 rounded-[2rem] border-2 border-black space-y-4 relative transition-all ${editingItem.type === '私帳' && !isShared ? 'bg-slate-100/50 border-slate-200' : ''}`}>
+                <div className={`flex justify-between items-center mb-3 ${editingItem.type === '私帳' && !isShared ? 'opacity-20 pointer-events-none' : ''}`}>
                   <div className="flex bg-white p-1 rounded-xl border-2 border-black">
                     <button onClick={() => { setEditSplitCurrency('TWD'); const nM:Record<string,number>={}; Object.entries(editingItem.customSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=(v as number); }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'TWD' ? 'bg-black text-white' : 'text-slate-400'}`}>台幣</button>
                     <button onClick={() => { setEditSplitCurrency('ORIGINAL'); const nM:Record<string,number>={}; Object.entries(editingItem.customOriginalSplits||{}).forEach(([id,v])=> { if(id && id !== '') nM[id]=(v as number); }); setManualSplits(nM); }} className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-wider ${editSplitCurrency === 'ORIGINAL' ? 'bg-[#F6D32D] text-black' : 'text-slate-400'}`}>外幣</button>
@@ -533,38 +530,126 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
                   </div>
                 </div>
                 
-                <div className={`space-y-4 ${editingItem.type === '私帳' ? 'opacity-20 pointer-events-none' : ''}`}>
-                  {state.members.map(m => {
-                    const isSelected = editingItem.splitWith?.includes(m.id);
-                    const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
-                    const ntdVal = (editingItem.customSplits?.[m.id] as number) || 0;
-                    const oriVal = (editingItem.customOriginalSplits?.[m.id] as number) || 0;
-                    const refVal = (isSelected && (ntdVal > 0 || oriVal > 0)) ? (editSplitCurrency === 'TWD' ? `≈ ${oriVal.toFixed(2)} ${editingItem.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
-
-                    return (
-                      <div key={m.id} className="flex flex-col gap-1">
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => { 
-                             const s = editingItem.splitWith || []; 
-                             const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
-                             const newType = (editSplitMode === 'equal' && newSplitWith.length === 1) ? '私帳' : (editSplitMode === 'equal' && newSplitWith.length > 1) ? '公帳' : editingItem.type;
-                             setEditingItem({ ...editingItem, splitWith: newSplitWith, type: newType as any, isSplit: newType === '公帳' }); 
-                          }} className={`flex-1 flex justify-between items-center p-3 rounded-xl border-2 transition-all ${isSelected ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-slate-100 text-slate-300'}`}>
-                            <span className="text-base font-black italic">{m.name}</span>
-                            {editSplitMode === 'equal' && isSelected && <Check size={18} className="text-[#1FA67A]" />}
-                          </button>
-                          
-                          {editSplitMode === 'custom' && isSelected && (
-                            <div className="relative w-32">
-                              <input type="number" className="w-full bg-white border-2 border-black rounded-xl px-3 py-2.5 text-sm font-black outline-none italic" value={displayValue} onChange={e => handleCustomSplitChange(m.id, e.target.value)} />
-                              <button onClick={() => handleCustomSplitChange(m.id, ((manualSplits[m.id]||0) + remainingAmount).toString())} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#F6D32D]"><Zap size={16} fill="currentColor" /></button>
-                            </div>
-                          )}
-                        </div>
-                        {editSplitMode === 'custom' && refVal && <div className="text-[11px] font-black text-slate-400 text-right pr-3 italic">{refVal}</div>}
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">分攤成員</span>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 rounded border-2 border-black checked:bg-[#F6D32D] checked:border-black focus:ring-0 text-black"
+                      checked={!editingItem.splitWith?.includes(editingItem.payerId)}
+                      onChange={(e) => {
+                        const isPayOnBehalf = e.target.checked;
+                        const s = editingItem.splitWith || [];
+                        let newSplitWith = [...s];
+                        if (isPayOnBehalf) {
+                          newSplitWith = newSplitWith.filter(id => id !== editingItem.payerId);
+                          if (newSplitWith.length === 0) {
+                            newSplitWith = state.members.map(m => m.id).filter(id => id !== editingItem.payerId);
+                          }
+                        } else {
+                          if (!newSplitWith.includes(editingItem.payerId)) {
+                            newSplitWith.push(editingItem.payerId);
+                          }
+                        }
+                        
+                        if (editSplitMode === 'custom') {
+                          const perNtd = Math.round(editingItem.ntdAmount / newSplitWith.length);
+                          const perOri = editingItem.originalAmount / newSplitWith.length;
+                          const sNtd: Record<string, number> = {};
+                          const sOri: Record<string, number> = {};
+                          const m = {};
+                          newSplitWith.forEach(id => {
+                            sNtd[id] = perNtd;
+                            sOri[id] = perOri;
+                            m[id] = editSplitCurrency === 'TWD' ? perNtd : perOri;
+                          });
+                          setEditingItem({
+                            ...editingItem,
+                            splitWith: newSplitWith,
+                            isSplit: true,
+                            customSplits: sNtd,
+                            customOriginalSplits: sOri
+                          });
+                          setManualSplits(m);
+                        } else {
+                          setEditingItem({
+                            ...editingItem,
+                            splitWith: newSplitWith,
+                            isSplit: true
+                          });
+                        }
+                      }}
+                    />
+                    <span className="text-[11px] font-black text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded border border-rose-200">代付模式 (排除付款人)</span>
+                  </label>
+                </div>
+                
+                <div className="relative">
+                  {editingItem.type === '私帳' && !isShared && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-[1px] rounded-[1.5rem]">
+                      <div className="bg-white border-2 border-black px-4 py-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 rotate-[-2deg]">
+                        <span className="text-xs font-black italic text-slate-500">私帳模式：個人自付自用</span>
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
+
+                  <div className={`space-y-4 ${editingItem.type === '私帳' && !isShared ? 'opacity-20 pointer-events-none' : ''}`}>
+                    {state.members.map(m => {
+                      const isSelected = editingItem.splitWith?.includes(m.id);
+                      const displayValue = isSelected ? (manualSplits[m.id] !== undefined ? (manualSplits[m.id] as number).toFixed(2).replace(/\.00$/, '').replace(/\.([0-9])0$/, '.$1') : '') : '';
+                      const ntdVal = (editingItem.customSplits?.[m.id] as number) || 0;
+                      const oriVal = (editingItem.customOriginalSplits?.[m.id] as number) || 0;
+                      const refVal = (isSelected && (ntdVal > 0 || oriVal > 0)) ? (editSplitCurrency === 'TWD' ? `≈ ${oriVal.toFixed(2)} ${editingItem.currency}` : `≈ NT$ ${Math.round(ntdVal)}`) : "";
+
+                      return (
+                        <div key={m.id} className="flex flex-col gap-1">
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => { 
+                               const s = editingItem.splitWith || []; 
+                               const newSplitWith = s.includes(m.id) ? s.filter(i=>i!==m.id && i !== '') : [...s, m.id].filter(id => id && id !== '');
+                               if (editSplitMode === 'custom') {
+                                 const perNtd = Math.round(editingItem.ntdAmount / newSplitWith.length);
+                                 const perOri = editingItem.originalAmount / newSplitWith.length;
+                                 const sNtd: Record<string, number> = {};
+                                 const sOri: Record<string, number> = {};
+                                 const mSplits: Record<string, number> = {};
+                                 newSplitWith.forEach(id => {
+                                   sNtd[id] = perNtd;
+                                   sOri[id] = perOri;
+                                   mSplits[id] = editSplitCurrency === 'TWD' ? perNtd : perOri;
+                                 });
+                                 setEditingItem({
+                                   ...editingItem,
+                                   splitWith: newSplitWith,
+                                   isSplit: true,
+                                   customSplits: sNtd,
+                                   customOriginalSplits: sOri
+                                 });
+                                 setManualSplits(mSplits);
+                               } else {
+                                 setEditingItem({
+                                   ...editingItem,
+                                   splitWith: newSplitWith,
+                                   isSplit: true
+                                 });
+                               }
+                            }} className={`flex-1 flex justify-between items-center p-3 rounded-xl border-2 transition-all ${isSelected ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-slate-100 text-slate-300'}`}>
+                              <span className="text-base font-black italic">{m.name}</span>
+                              {editSplitMode === 'equal' && isSelected && <Check size={18} className="text-[#1FA67A]" />}
+                            </button>
+                            
+                            {editSplitMode === 'custom' && isSelected && (
+                              <div className="relative w-32">
+                                <input type="number" className="w-full bg-white border-2 border-black rounded-xl px-3 py-2.5 text-sm font-black outline-none italic" value={displayValue} onChange={e => handleCustomSplitChange(m.id, e.target.value)} />
+                                <button onClick={() => handleCustomSplitChange(m.id, ((manualSplits[m.id]||0) + remainingAmount).toString())} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#F6D32D]"><Zap size={16} fill="currentColor" /></button>
+                              </div>
+                            )}
+                          </div>
+                          {editSplitMode === 'custom' && refVal && <div className="text-[11px] font-black text-slate-400 text-right pr-3 italic">{refVal}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

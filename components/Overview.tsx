@@ -29,31 +29,43 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
     });
 
     state.transactions.forEach(t => {
-      if (t.isSplit) {
-        // 公帳：付款人墊付
-        prepaid[t.payerId] += t.ntdAmount;
-        
-        if (t.customSplits && Object.keys(t.customSplits).length > 0) {
-          Object.entries(t.customSplits as Record<string, number>).forEach(([mid, amount]) => {
+      // 只要是交易，付款人都實際墊付了此筆交易的總金額（台幣）
+      prepaid[t.payerId] += t.ntdAmount;
+      
+      const isPublic = t.type === '公帳';
+
+      if (t.customSplits && Object.keys(t.customSplits).length > 0) {
+        Object.entries(t.customSplits as Record<string, number>).forEach(([mid, amount]) => {
+          if (isPublic) {
             publicPayable[mid] += amount as number;
+          } else {
+            privateSpending[mid] += amount as number;
+          }
+        });
+      } else {
+        const splitCount = t.splitWith.length;
+        if (splitCount > 0) {
+          const perPerson = t.ntdAmount / splitCount;
+          t.splitWith.forEach(mid => {
+            if (isPublic) {
+              publicPayable[mid] += perPerson;
+            } else {
+              privateSpending[mid] += perPerson;
+            }
           });
         } else {
-          const splitCount = t.splitWith.length;
-          if (splitCount > 0) {
-            const perPerson = t.ntdAmount / splitCount;
-            t.splitWith.forEach(mid => {
-              publicPayable[mid] += perPerson;
-            });
+          // 若無分攤成員，則預設歸為付款人自己的開支
+          if (isPublic) {
+            publicPayable[t.payerId] += t.ntdAmount;
+          } else {
+            privateSpending[t.payerId] += t.ntdAmount;
           }
         }
-      } else {
-        // 私帳：付款人自己的消費
-        privateSpending[t.payerId] += t.ntdAmount;
       }
     });
 
     state.members.forEach(m => {
-      balances[m.id] = prepaid[m.id] - publicPayable[m.id];
+      balances[m.id] = prepaid[m.id] - (publicPayable[m.id] + privateSpending[m.id]);
     });
 
     return { prepaid, publicPayable, privateSpending, balances };
@@ -194,7 +206,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
                       <User size={11} />
                       <span>{payer?.name || t.payerId}</span>
                     </div>
-                    {t.isSplit && t.type === '公帳' && (
+                    {t.isSplit && (
                       <div className="flex items-center gap-1 text-[11px] font-black text-slate-400">
                         <Users size={11} />
                         {isAllSplit ? (
