@@ -252,7 +252,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
             myCategoryStats.map(([cat, amount]) => (
               <div 
                 key={cat} 
-                onClick={() => onNavigateToDetailsWithFilter?.(cat as Category, state.currentUser)}
+                onClick={() => onNavigateToDetailsWithFilter?.(cat as Category, state.currentUser, '全部', 'beneficiary')}
                 className="flex items-center justify-between p-4 bg-slate-50 border-2 border-black rounded-2xl cursor-pointer hover:bg-slate-100 active:translate-y-[1px] transition-all"
               >
                 <div className="flex items-center gap-3">
