@@ -115,7 +115,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
       .filter(m => m.balance > 0.5)
       .sort((a, b) => b.balance - a.balance); // 墊最多錢的優先
 
-    const settlements: { from: string; to: string; amount: number }[] = [];
+    const settlements: { from: string; fromId: string; to: string; toId: string; amount: number }[] = [];
     
     let dIdx = 0;
     let cIdx = 0;
@@ -129,7 +129,7 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
       const amount = Math.min(d.balance, c.balance);
       
       if (amount > 0.5) {
-        settlements.push({ from: d.name, to: c.name, amount });
+        settlements.push({ from: d.name, fromId: d.id, to: c.name, toId: c.id, amount });
       }
       
       d.balance -= amount;
@@ -383,35 +383,64 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
 
         <div className="space-y-4">
           {settlements.length > 0 ? (
-            settlements.map((s, idx) => (
-              <div key={idx} className="bg-slate-50 border-2 border-black p-5 rounded-2xl flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="flex flex-col items-start gap-1">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">付款人</span>
-                      <div className="bg-white text-black px-3 py-1.5 rounded-lg font-black text-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                        {s.from}
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col items-center pt-4">
-                      <ArrowRight size={18} className="text-emerald-500" />
-                    </div>
+            settlements.map((s, idx) => {
+              const isMePaying = s.fromId === state.currentUser;
+              const isMeReceiving = s.toId === state.currentUser;
+              const isInvolved = isMePaying || isMeReceiving;
 
-                    <div className="flex flex-col items-start gap-1">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">收款人</span>
-                      <div className="bg-[#F6D32D] text-black px-3 py-1.5 rounded-lg font-black text-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                        {s.to}
+              let cardBgClass = "bg-slate-50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]";
+              if (isMePaying) {
+                cardBgClass = "bg-red-50/50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(239,68,68,1)]";
+              } else if (isMeReceiving) {
+                cardBgClass = "bg-emerald-50/50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(16,185,129,1)]";
+              }
+
+              return (
+                <div key={idx} className={`${cardBgClass} p-5 rounded-2xl flex flex-col gap-4 relative transition-all duration-200`}>
+                  {isInvolved && (
+                    <div className={`absolute top-3 right-3 px-2 py-0.5 border border-black rounded-md text-[10px] font-black uppercase tracking-wider shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${isMePaying ? "bg-red-400 text-white" : "bg-emerald-400 text-white"}`}>
+                      {isMePaying ? "你需要付款" : "你需要收款"}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">付款人 (點擊看明細)</span>
+                        <button 
+                          onClick={() => onNavigateToDetailsWithFilter?.('全部', s.fromId, '全部', 'all')}
+                          className="bg-white hover:bg-slate-100 text-black px-3 py-1.5 rounded-lg font-black text-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
+                          title={`查看 ${s.from} 的明細`}
+                        >
+                          {s.from}
+                        </button>
+                      </div>
+                      
+                      <div className="flex flex-col items-center pt-4">
+                        <ArrowRight size={18} className={isMePaying ? "text-red-500 animate-pulse" : isMeReceiving ? "text-emerald-500 animate-pulse" : "text-slate-400"} />
+                      </div>
+
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">收款人 (點擊看明細)</span>
+                        <button 
+                          onClick={() => onNavigateToDetailsWithFilter?.('全部', s.toId, '全部', 'all')}
+                          className="bg-[#F6D32D] hover:bg-[#ebd25b] text-black px-3 py-1.5 rounded-lg font-black text-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
+                          title={`查看 ${s.to} 的明細`}
+                        >
+                          {s.to}
+                        </button>
                       </div>
                     </div>
                   </div>
+                  <div className="flex justify-between items-end border-t-2 border-dashed border-slate-200 pt-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">
+                      應轉帳金額
+                    </span>
+                    <div className="text-2xl font-black italic text-black">NT$ {Math.round(s.amount).toLocaleString()}</div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-end border-t-2 border-dashed border-slate-200 pt-3">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Pay Amount</div>
-                  <div className="text-2xl font-black italic text-black">NT$ {Math.round(s.amount).toLocaleString()}</div>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 font-bold italic text-slate-400">
               目前帳目已平衡，無需轉帳
