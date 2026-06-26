@@ -17,6 +17,8 @@ interface DetailsProps {
   initialFilters?: {
     category: Category | '全部';
     memberId: string | '全部';
+    type?: '全部' | '公帳' | '私帳';
+    role?: 'all' | 'payer' | 'beneficiary';
   } | null;
   onClearInitialFilters?: () => void;
 }
@@ -36,6 +38,7 @@ const Details: React.FC<DetailsProps> = ({
   const [filterCategory, setFilterCategory] = useState<Category | '全部'>('全部');
   const [filterMemberId, setFilterMemberId] = useState<string | '全部'>('全部');
   const [filterType, setFilterType] = useState<'全部' | '公帳' | '私帳'>('全部');
+  const [filterRole, setFilterRole] = useState<'all' | 'payer' | 'beneficiary'>('all');
   const [filterDate, setFilterDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
@@ -77,6 +80,16 @@ const Details: React.FC<DetailsProps> = ({
     if (initialFilters) {
       setFilterCategory(initialFilters.category);
       setFilterMemberId(initialFilters.memberId);
+      if (initialFilters.type) {
+        setFilterType(initialFilters.type);
+      } else {
+        setFilterType('全部');
+      }
+      if (initialFilters.role) {
+        setFilterRole(initialFilters.role);
+      } else {
+        setFilterRole('all');
+      }
       setIsFilterExpanded(true);
       onClearInitialFilters?.();
     }
@@ -266,16 +279,30 @@ const Details: React.FC<DetailsProps> = ({
     setFilterCategory('全部');
     setFilterMemberId('全部');
     setFilterType('全部');
+    setFilterRole('all');
     setFilterDate('');
     setSearchQuery('');
   };
 
-  const isFilterActive = filterCategory !== '全部' || filterMemberId !== '全部' || filterType !== '全部' || filterDate !== '' || searchQuery !== '';
-  const activeFilterCount = (filterCategory !== '全部' ? 1 : 0) + (filterMemberId !== '全部' ? 1 : 0) + (filterType !== '全部' ? 1 : 0) + (filterDate !== '' ? 1 : 0);
+  const isFilterActive = filterCategory !== '全部' || filterMemberId !== '全部' || filterType !== '全部' || filterRole !== 'all' || filterDate !== '' || searchQuery !== '';
+  const activeFilterCount = (filterCategory !== '全部' ? 1 : 0) + (filterMemberId !== '全部' ? 1 : 0) + (filterType !== '全部' ? 1 : 0) + (filterRole !== 'all' ? 1 : 0) + (filterDate !== '' ? 1 : 0);
 
   const filteredTransactions = state.transactions
     .filter(t => filterCategory === '全部' || t.category === filterCategory)
-    .filter(t => filterMemberId === '全部' || t.payerId === filterMemberId || (t.splitWith && t.splitWith.includes(filterMemberId)))
+    .filter(t => {
+      if (filterMemberId === '全部') return true;
+      if (filterRole === 'payer') {
+        return t.payerId === filterMemberId;
+      }
+      if (filterRole === 'beneficiary') {
+        const hasSplits = t.splitWith && t.splitWith.length > 0;
+        if (!hasSplits) {
+          return t.payerId === filterMemberId;
+        }
+        return t.splitWith.includes(filterMemberId);
+      }
+      return t.payerId === filterMemberId || (t.splitWith && t.splitWith.includes(filterMemberId));
+    })
     .filter(t => filterType === '全部' || t.type === filterType)
     .filter(t => filterDate === '' || t.date === filterDate)
     .filter(t => t.item.toLowerCase().includes(searchQuery.toLowerCase()) || t.merchant.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -325,7 +352,7 @@ const Details: React.FC<DetailsProps> = ({
                   options={[{id: '全部', name: '不限'}, ...state.members.map(m => ({ id: m.id, name: m.name }))]}
                   isOpen={openDropdown === 'filter-payer'}
                   onToggle={() => setOpenDropdown(openDropdown === 'filter-payer' ? null : 'filter-payer')}
-                  onSelect={setFilterMemberId}
+                  onSelect={(val: string) => { setFilterMemberId(val); setFilterRole('all'); }}
                 />
                 <CustomSelect 
                   label="分類"

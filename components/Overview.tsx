@@ -10,7 +10,12 @@ interface OverviewProps {
   onAddTransaction: (t: Partial<Transaction>) => void;
   setIsAIProcessing: (loading: boolean) => void;
   onEditTransaction: (id: string) => void;
-  onNavigateToDetailsWithFilter?: (category: Category | '全部', memberId: string | '全部') => void;
+  onNavigateToDetailsWithFilter?: (
+    category: Category | '全部', 
+    memberId: string | '全部', 
+    type?: '全部' | '公帳' | '私帳',
+    role?: 'all' | 'payer' | 'beneficiary'
+  ) => void;
 }
 
 const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIProcessing, onEditTransaction, onNavigateToDetailsWithFilter }) => {
@@ -331,16 +336,25 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center bg-white/60 border-2 border-black/10 rounded-xl px-4 py-3">
-                      <span className="text-xs font-black text-slate-500 italic">公帳應付</span>
+                    <div 
+                      onClick={() => onNavigateToDetailsWithFilter?.('全部', m.id, '公帳', 'beneficiary')}
+                      className="flex justify-between items-center bg-white/60 border-2 border-transparent hover:border-black rounded-xl px-4 py-3 cursor-pointer hover:bg-slate-50 transition-all active:translate-y-[1px]"
+                    >
+                      <span className="text-xs font-black text-slate-500 italic flex items-center gap-1">公帳應付 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" /></span>
                       <span className="text-sm font-black text-black">NT$ {Math.round(myPublicPayable).toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between items-center bg-white/60 border-2 border-black/10 rounded-xl px-4 py-3">
-                      <span className="text-xs font-black text-slate-500 italic">已墊付</span>
+                    <div 
+                      onClick={() => onNavigateToDetailsWithFilter?.('全部', m.id, '全部', 'payer')}
+                      className="flex justify-between items-center bg-white/60 border-2 border-transparent hover:border-black rounded-xl px-4 py-3 cursor-pointer hover:bg-slate-50 transition-all active:translate-y-[1px]"
+                    >
+                      <span className="text-xs font-black text-slate-500 italic flex items-center gap-1">已墊付 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" /></span>
                       <span className="text-sm font-black text-[#1FA67A]">NT$ {Math.round(myPrepaid).toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between items-center bg-white/60 border-2 border-black/10 rounded-xl px-4 py-3">
-                      <span className="text-xs font-black text-slate-500 italic">私帳消費</span>
+                    <div 
+                      onClick={() => onNavigateToDetailsWithFilter?.('全部', m.id, '私帳', 'beneficiary')}
+                      className="flex justify-between items-center bg-white/60 border-2 border-transparent hover:border-black rounded-xl px-4 py-3 cursor-pointer hover:bg-slate-50 transition-all active:translate-y-[1px]"
+                    >
+                      <span className="text-xs font-black text-slate-500 italic flex items-center gap-1">私帳消費 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" /></span>
                       <span className="text-sm font-black text-slate-600">NT$ {Math.round(myPrivateSpending).toLocaleString()}</span>
                     </div>
                   </div>

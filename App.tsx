@@ -19,6 +19,8 @@ const App: React.FC = () => {
   const [initialFilters, setInitialFilters] = useState<{
     category: Category | '全部';
     memberId: string | '全部';
+    type?: '全部' | '公帳' | '私帳';
+    role?: 'all' | 'payer' | 'beneficiary';
   } | null>(null);
   
   const [showNav, setShowNav] = useState(true);
@@ -309,8 +311,8 @@ const App: React.FC = () => {
             onAddTransaction={onAddTransaction} 
             setIsAIProcessing={setIsAIProcessing} 
             onEditTransaction={onEditFromOverview}
-            onNavigateToDetailsWithFilter={(cat, memId) => {
-              setInitialFilters({ category: cat, memberId: memId });
+            onNavigateToDetailsWithFilter={(cat, memId, type, role) => {
+              setInitialFilters({ category: cat, memberId: memId, type, role });
               setActiveTab('details');
               setShowNav(true);
             }}
