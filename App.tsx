@@ -16,6 +16,10 @@ const App: React.FC = () => {
   const [isMutating, setIsMutating] = useState(false);
   const [initialEditId, setInitialEditId] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [initialFilters, setInitialFilters] = useState<{
+    category: Category | '全部';
+    memberId: string | '全部';
+  } | null>(null);
   
   const [showNav, setShowNav] = useState(true);
   const lastScrollY = useRef(0);
@@ -305,6 +309,11 @@ const App: React.FC = () => {
             onAddTransaction={onAddTransaction} 
             setIsAIProcessing={setIsAIProcessing} 
             onEditTransaction={onEditFromOverview}
+            onNavigateToDetailsWithFilter={(cat, memId) => {
+              setInitialFilters({ category: cat, memberId: memId });
+              setActiveTab('details');
+              setShowNav(true);
+            }}
           />
         )}
         {activeTab === 'details' && (
@@ -317,6 +326,8 @@ const App: React.FC = () => {
             initialEditId={initialEditId}
             onClearInitialEdit={() => setInitialEditId(null)}
             setIsMutating={setIsMutating}
+            initialFilters={initialFilters}
+            onClearInitialFilters={() => setInitialFilters(null)}
           />
         )}
         {activeTab === 'settings' && <Settings state={state} updateState={updateState} onReloadManagement={loadManagement} onSwitchLedger={(l) => syncLedgerData(l, false)} />}

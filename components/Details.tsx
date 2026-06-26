@@ -14,9 +14,25 @@ interface DetailsProps {
   initialEditId?: string | null;
   onClearInitialEdit?: () => void;
   setIsMutating?: (loading: boolean) => void;
+  initialFilters?: {
+    category: Category | '全部';
+    memberId: string | '全部';
+  } | null;
+  onClearInitialFilters?: () => void;
 }
 
-const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateState, onSync, isSyncing, initialEditId, onClearInitialEdit, setIsMutating }) => {
+const Details: React.FC<DetailsProps> = ({ 
+  state, 
+  onDeleteTransaction, 
+  updateState, 
+  onSync, 
+  isSyncing, 
+  initialEditId, 
+  onClearInitialEdit, 
+  setIsMutating,
+  initialFilters,
+  onClearInitialFilters
+}) => {
   const [filterCategory, setFilterCategory] = useState<Category | '全部'>('全部');
   const [filterMemberId, setFilterMemberId] = useState<string | '全部'>('全部');
   const [filterType, setFilterType] = useState<'全部' | '公帳' | '私帳'>('全部');
@@ -56,6 +72,15 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
       onClearInitialEdit?.();
     }
   }, [initialEditId, state.transactions, onClearInitialEdit]);
+
+  useEffect(() => {
+    if (initialFilters) {
+      setFilterCategory(initialFilters.category);
+      setFilterMemberId(initialFilters.memberId);
+      setIsFilterExpanded(true);
+      onClearInitialFilters?.();
+    }
+  }, [initialFilters, onClearInitialFilters]);
 
   useEffect(() => {
     const handleClickOutside = () => setOpenDropdown(null);
@@ -250,7 +275,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
 
   const filteredTransactions = state.transactions
     .filter(t => filterCategory === '全部' || t.category === filterCategory)
-    .filter(t => filterMemberId === '全部' || t.payerId === filterMemberId)
+    .filter(t => filterMemberId === '全部' || t.payerId === filterMemberId || (t.splitWith && t.splitWith.includes(filterMemberId)))
     .filter(t => filterType === '全部' || t.type === filterType)
     .filter(t => filterDate === '' || t.date === filterDate)
     .filter(t => t.item.toLowerCase().includes(searchQuery.toLowerCase()) || t.merchant.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -294,7 +319,7 @@ const Details: React.FC<DetailsProps> = ({ state, onDeleteTransaction, updateSta
             <div className="bg-white border-2 border-black rounded-[2rem] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-top-2 duration-200">
               <div className="grid grid-cols-2 gap-4">
                 <CustomSelect 
-                  label="付款人"
+                  label="成員"
                   icon={UserCheck}
                   value={filterMemberId}
                   options={[{id: '全部', name: '不限'}, ...state.members.map(m => ({ id: m.id, name: m.name }))]}

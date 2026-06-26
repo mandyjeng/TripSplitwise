@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Transaction, Member, AppState } from '../types';
+import { Transaction, Member, AppState, Category } from '../types';
 import AIInput from './AIInput';
 import { CATEGORY_ICONS, CATEGORY_COLORS, DEFAULT_CATEGORY_ICON, DEFAULT_CATEGORY_COLOR } from '../constants';
 import { TrendingUp, ShoppingBag, Users, ReceiptText, FileSpreadsheet, User, ArrowRightLeft, ArrowRight } from 'lucide-react';
@@ -10,9 +10,10 @@ interface OverviewProps {
   onAddTransaction: (t: Partial<Transaction>) => void;
   setIsAIProcessing: (loading: boolean) => void;
   onEditTransaction: (id: string) => void;
+  onNavigateToDetailsWithFilter?: (category: Category | '全部', memberId: string | '全部') => void;
 }
 
-const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIProcessing, onEditTransaction }) => {
+const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIProcessing, onEditTransaction, onNavigateToDetailsWithFilter }) => {
   const totalExpense = state.transactions.reduce((acc, t) => acc + t.ntdAmount, 0);
 
   const calculateStats = () => {
@@ -244,7 +245,11 @@ const Overview: React.FC<OverviewProps> = ({ state, onAddTransaction, setIsAIPro
         <div className="space-y-4">
           {myCategoryStats.length > 0 ? (
             myCategoryStats.map(([cat, amount]) => (
-              <div key={cat} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-black rounded-2xl">
+              <div 
+                key={cat} 
+                onClick={() => onNavigateToDetailsWithFilter?.(cat as Category, state.currentUser)}
+                className="flex items-center justify-between p-4 bg-slate-50 border-2 border-black rounded-2xl cursor-pointer hover:bg-slate-100 active:translate-y-[1px] transition-all"
+              >
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-lg border-2 border-black flex items-center justify-center ${(CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR).split(' ')[0]}`}>
                     {React.cloneElement((CATEGORY_ICONS[cat] || DEFAULT_CATEGORY_ICON) as React.ReactElement<any>, { size: 18 })}
